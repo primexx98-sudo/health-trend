@@ -2,7 +2,6 @@ import requests
 import logging
 from urllib.parse import quote
 from collections import Counter
-import re
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -25,25 +24,22 @@ def search_naver_blog(query, display=20):
         logger.error(f"블로그 수집 실패 [{query}]: {e}")
         return []
 
-def extract_hashtags(text):
-    return re.findall(r"#(\w+)", text)
-
 def get_sns_keywords():
-    """네이버 블로그 기반 SNS 화제 키워드 추출"""
     keyword_counter = Counter()
 
     for kw in HEALTH_KEYWORDS[:10]:
-        items = search_naver_blog(f"#{kw} 영양제", display=10)
+        items = search_naver_blog(f"{kw} 영양제 후기", display=10)
         for item in items:
-            tags = extract_hashtags(item.get("description", ""))
-            for tag in tags:
-                if any(health_kw in tag for health_kw in ["비타민", "영양", "건강", "유산균", "오메가", "콜라겐", "홍삼", "단백질", "보충제", "프로바이오"]):
-                    keyword_counter[tag] += 1
+            text = item.get("title", "") + " " + item.get("description", "")
+            text = text.replace("<b>", "").replace("</b>", "")
+            for health_kw in HEALTH_KEYWORDS:
+                if health_kw in text:
+                    keyword_counter[health_kw] += 1
 
-        for kw_name in HEALTH_KEYWORDS:
-            if kw_name in item.get("description", "") or kw_name in item.get("title", ""):
-                keyword_counter[f"#{kw_name}"] += 1
-
-    top_keywords = [{"tag": f"#{kw}", "count": cnt} for kw, cnt in keyword_counter.most_common(20)]
+    top_keywords = [
+        {"tag": f"#{kw}", "count": cnt}
+        for kw, cnt in keyword_counter.most_common(20)
+        if cnt > 0
+    ]
     logger.info(f"SNS 키워드 {len(top_keywords)}개 추출 완료")
     return top_keywords
