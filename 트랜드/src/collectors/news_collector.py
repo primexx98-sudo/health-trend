@@ -39,7 +39,7 @@ def get_naver_news(query, display=10):
         return []
 
 def get_mfds_rss():
-    url = "https://www.mfds.go.kr/r
+    url = "https://www.mfds.go.kr/rss/rss_01.do"
     try:
         import xml.etree.ElementTre
         resp = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
