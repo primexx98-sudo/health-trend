@@ -9,7 +9,7 @@ from config import NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, HEALTH_KEYWORDS
 
 logger = logging.getLogger(__name__)
 
-def search_naver_blog(query, display=20):
+def search_naver_blog(query, display=10):
     url = "https://openapi.naver.com/v1/search/blog.json"
     params = {"query": quote(query), "display": display, "sort": "date"}
     headers = {
@@ -27,14 +27,16 @@ def search_naver_blog(query, display=20):
 def get_sns_keywords():
     keyword_counter = Counter()
 
-    for kw in HEALTH_KEYWORDS[:10]:
-        items = search_naver_blog(f"{kw} 영양제 후기", display=10)
-        for item in items:
-            text = item.get("title", "") + " " + item.get("description", "")
-            text = text.replace("<b>", "").replace("</b>", "")
-            for health_kw in HEALTH_KEYWORDS:
-                if health_kw in text:
-                    keyword_counter[health_kw] += 1
+    for kw in HEALTH_KEYWORDS:
+        items = search_naver_blog(kw, display=10)
+        if items:
+            keyword_counter[kw] += len(items)
+            for item in items:
+                text = (item.get("title", "") + " " + item.get("description", ""))
+                text = text.replace("<b>", "").replace("</b>", "")
+                for other_kw in HEALTH_KEYWORDS:
+                    if other_kw in text and other_kw != kw:
+                        keyword_counter[other_kw] += 1
 
     top_keywords = [
         {"tag": f"#{kw}", "count": cnt}
