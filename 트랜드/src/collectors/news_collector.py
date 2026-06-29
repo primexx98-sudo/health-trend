@@ -39,8 +39,8 @@ REGULATORY_KEYWORDS = [
 KOREAN_RSS_FEEDS = [
     {"name": "연합뉴스 건강", "url": "https://www.yna.co.kr/rss/health.xml", "trusted": True},
     {"name": "헬스조선", "url": "https://health.chosun.com/site/data/rss/rss.xml", "trusted": True},
-    {"name": "약업신문", "url": "http://www.yakup.com/rss/all.xml", "trusted": True},
-    {"name": "데일리팜", "url": "http://www.dailypharm.com/rss/allArticle.xml", "trusted": True},
+    {"name": "팜뉴스",         "url": "http://www.pharmnews.com/rss/allArticle.xml",        "trusted": False},
+    {"name": "메디소비자뉴스", "url": "https://www.medisobizanews.com/rss/allArticle.xml", "trusted": False},
     {"name": "식품음료신문", "url": "http://www.thinkfood.co.kr/rss/allArticle.xml", "trusted": True},
     {"name": "뉴스1 생활", "url": "https://www.news1.kr/rss/life.xml", "trusted": False},
 ]
