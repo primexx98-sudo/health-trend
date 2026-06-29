@@ -1,6 +1,7 @@
 import requests
 import logging
 from urllib.parse import quote
+from bs4 import BeautifulSoup
 from email.utils import parsedate_to_datetime
 from datetime import datetime, timedelta, timezone
 import sys, os
@@ -30,6 +31,13 @@ RESEARCH_KEYWORDS = [
 REGULATORY_KEYWORDS = [
     "식약처", "허가", "인정", "고시", "규정", "기준",
     "승인", "행정처분", "개정", "안전성 평가", "식품의약품안전처"
+]
+
+# ─── 국내 건강 뉴스 RSS 피드 (직접 추가/수정 가능) ────────────────
+KOREAN_RSS_FEEDS = [
+    {"name": "연합뉴스 건강", "url": "https://www.yna.co.kr/rss/health.xml"},
+    {"name": "헬스조선", "url": "https://health.chosun.com/site/data/rss/rss.xml"},
+    {"name": "메디컬투데이", "url": "http://www.mdtoday.co.kr/rss/allArticle.xml"},
 ]
 # ──────────────────────────────────────────────────────────────────
 
@@ -69,7 +77,7 @@ def is_recent(pub_date_str, days=14):
         return True
 
 
-def is_relevant(title, desc):
+def is_relevant(title, desc=""):
     combined = title + " " + desc
     if any(ex in combined for ex in EXCLUDE_KEYWORDS):
         return False
@@ -77,7 +85,7 @@ def is_relevant(title, desc):
            any(kw in desc for kw in HEALTH_KEYWORDS)
 
 
-def categorize(title, desc):
+def categorize(title, desc=""):
     combined = title + " " + desc
     if any(kw in combined for kw in REGULATORY_KEYWORDS):
         return "regulatory"
@@ -96,10 +104,58 @@ def get_naver_news(query, display=10):
     try:
         resp = requests.get(url, headers=headers, params=params, timeout=10)
         resp.raise_for_status()
-        return resp.json().get("items", [])
+        data = resp.json()
+        if "errorCode" in data:
+            logger.warning(f"Naver API 오류 [{query}]: {data.get('errorMessage')} (code={data.get('errorCode')})")
+            return []
+        return data.get("items", [])
     except Exception as e:
         logger.error(f"뉴스 수집 실패 [{query}]: {e}")
         return []
+
+
+def get_korean_rss_news():
+    """Naver API 없이도 동작하는 국내 건강뉴스 RSS 수집"""
+    all_items, seen = [], set()
+    for feed in KOREAN_RSS_FEEDS:
+        try:
+            resp = requests.get(feed["url"], timeout=15, headers={"User-Agent": "Mozilla/5.0"})
+            resp.raise_for_status()
+            soup = BeautifulSoup(resp.content, "lxml-xml")
+            for item in soup.find_all("item")[:20]:
+                title_tag = item.find("title")
+                link_tag = item.find("link")
+                pub_tag = item.find("pubDate")
+                desc_tag = item.find("description")
+
+                if not title_tag:
+                    continue
+
+                title = BeautifulSoup(title_tag.get_text(strip=True), "html.parser").get_text()
+                link = link_tag.get_text(strip=True) if link_tag else ""
+                pub = pub_tag.get_text(strip=True) if pub_tag else ""
+                desc = BeautifulSoup(desc_tag.get_text(strip=True), "html.parser").get_text()[:200] if desc_tag else ""
+
+                if title in seen:
+                    continue
+                if not is_recent(pub, days=7):
+                    continue
+                if not is_relevant(title, desc):
+                    continue
+
+                seen.add(title)
+                all_items.append({
+                    "title": title,
+                    "link": link,
+                    "pubDate": pub,
+                    "description": desc,
+                    "category": categorize(title, desc),
+                    "source": feed["name"],
+                })
+        except Exception as e:
+            logger.warning(f"RSS 수집 실패 [{feed['name']}]: {e}")
+    logger.info(f"국내 RSS 뉴스 {len(all_items)}건 수집")
+    return all_items
 
 
 def _collect_from_queries(queries, days=14):
@@ -132,6 +188,9 @@ def collect_all_news():
     research_items = _collect_from_queries(QUERIES_RESEARCH, days=30)
     regulatory_items = _collect_from_queries(QUERIES_REGULATORY, days=30)
 
+    # Naver API 결과가 없으면 RSS로 보완
+    rss_items = get_korean_rss_news()
+
     seen = set()
     research, regulatory, general = [], [], []
 
@@ -150,7 +209,19 @@ def collect_all_news():
             seen.add(item["title"])
             general.append(item)
 
-    logger.info(f"뉴스 수집 - 일반:{len(general)} 연구:{len(research)} 규제:{len(regulatory)}")
+    # RSS 보완
+    for item in rss_items:
+        if item["title"] not in seen:
+            seen.add(item["title"])
+            cat = item["category"]
+            if cat == "research":
+                research.append(item)
+            elif cat == "regulatory":
+                regulatory.append(item)
+            else:
+                general.append(item)
+
+    logger.info(f"뉴스 최종 - 일반:{len(general)} 연구:{len(research)} 규제:{len(regulatory)}")
     mfds = [r for r in regulatory if "mfds.go.kr" in r.get("link", "")]
 
     return {
