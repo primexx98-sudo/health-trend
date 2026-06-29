@@ -9,6 +9,7 @@ from collectors.naver_trends import get_top_keywords
 from collectors.google_trends import get_global_trends, get_rising_keywords
 from collectors.sns_collector import get_sns_keywords
 from collectors.news_collector import collect_all_news
+from collectors.overseas_collector import get_overseas_news
 from generator.dashboard import generate_html
 
 def setup_logging():
@@ -25,30 +26,31 @@ def main():
     logger = logging.getLogger("main")
     logger.info("트랜드 수집 시작")
 
-    print("[1/4] 국내 키워드 순위 수집 중...")
+    print("[1/5] 국내 키워드 순위 수집 중...")
     naver_data = get_top_keywords() or [{"keyword": "데이터 없음", "ratio": 0}]
 
-    print("[2/4] 글로벌 트랜드 수집 중...")
+    print("[2/5] 글로벌 트랜드 수집 중...")
     google_data = get_global_trends()
     rising_data = get_rising_keywords()
 
-    print("[3/4] SNS 키워드 수집 중...")
+    print("[3/5] SNS 키워드 수집 중...")
     sns_data = get_sns_keywords()
 
-    print("[4/4] 뉴스/연구 동향 수집 중...")
+    print("[4/5] 뉴스/연구 동향 수집 중...")
     news_data = collect_all_news()
 
+    print("[5/5] 해외 업계 동향 수집 중...")
+    overseas_data = get_overseas_news()
+
     print("대시보드 생성 중...")
-    html, date_str = generate_html(naver_data, google_data, sns_data, news_data, rising_data)
+    html, date_str = generate_html(naver_data, google_data, sns_data, news_data, rising_data, overseas_data)
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    # 날짜별 파일 저장
     output_path = os.path.join(OUTPUT_DIR, f"dashboard_{date_str}.html")
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(html)
 
-    # index.html 업데이트 (GitHub Pages 진입점)
     index_path = os.path.join(OUTPUT_DIR, "index.html")
     redirect_html = f"""<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
