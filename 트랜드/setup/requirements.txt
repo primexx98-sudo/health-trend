@@ -2,3 +2,4 @@ requests==2.31.0
 pytrends==4.9.2
 beautifulsoup4==4.12.3
 lxml==5.1.0
+deep-translator==1.11.4
