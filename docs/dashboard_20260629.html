@@ -13,6 +13,9 @@
   .header .date { opacity: 0.85; font-size: 0.95rem; }
   .card { border: none; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); margin-bottom: 20px; }
   .card-header { background: #fff; border-bottom: 2px solid #e9ecef; border-radius: 12px 12px 0 0 !important; font-weight: 700; font-size: 1rem; padding: 14px 18px; }
+  .card-header.research { border-bottom-color: #d0ebff; }
+  .card-header.regulatory { border-bottom-color: #fff3bf; }
+  .card-header.overseas { border-bottom-color: #ffe3e3; }
   .rank { width: 32px; color: #adb5bd; font-weight: 700; }
   .bar { background: #52b788; height: 18px; border-radius: 4px; min-width: 4px; color: white; font-size: 11px; padding: 1px 4px; }
   .bar-green { background: #74c69d; }
@@ -21,12 +24,17 @@
   tr:hover { background: #f8f9fa; }
   .tag { display: inline-block; background: #d8f3dc; color: #1b4332; border-radius: 20px; padding: 4px 12px; margin: 4px; cursor: default; }
   .rising-tag { display: inline-block; background: #fff3cd; color: #856404; border-radius: 8px; padding: 6px 14px; margin: 4px; font-weight: 600; font-size: 0.9rem; }
-  .news-item { padding: 8px 0; border-bottom: 1px solid #f1f3f5; }
-  .news-item a { color: #2d6a4f; text-decoration: none; font-size: 0.88rem; }
+  .news-item { padding: 7px 0; border-bottom: 1px solid #f1f3f5; }
+  .news-item:last-child { border-bottom: none; }
+  .news-item a { color: #2d6a4f; text-decoration: none; font-size: 0.87rem; line-height: 1.4; }
   .news-item a:hover { text-decoration: underline; }
-  .news-date { display: block; color: #adb5bd; font-size: 0.78rem; }
-  .mfds { background: #f8f9fa; padding: 6px 10px; border-radius: 6px; margin: 4px 0; }
+  .news-date { display: block; color: #adb5bd; font-size: 0.76rem; margin-top: 2px; }
+  .news-source { color: #868e96; }
   .section-icon { margin-right: 6px; }
+  .section-label { font-size: 0.7rem; font-weight: 600; padding: 2px 7px; border-radius: 10px; margin-left: 6px; vertical-align: middle; }
+  .label-research { background: #d0ebff; color: #1864ab; }
+  .label-regulatory { background: #fff3bf; color: #7d6608; }
+  .label-overseas { background: #ffe3e3; color: #c92a2a; }
 </style>
 </head>
 <body>
@@ -40,43 +48,64 @@
   <!-- 급상승 키워드 배너 -->
   <div class="card mb-3">
     <div class="card-header">⚡ 오늘의 급상승 키워드</div>
-    <div class="card-body py-2"><span class="rising-tag">🔥 건강 기능 식품 협회</span><span class="rising-tag">🔥 영양제 갤러리</span><span class="rising-tag">🔥 종합 영양제 추천</span><span class="rising-tag">🔥 다이 소 영양제</span></div>
+    <div class="card-body py-2"><span class="rising-tag">🔥 한국 건강 기능 식품 협회</span><span class="rising-tag">🔥 다이 소 영양제 추천</span><span class="rising-tag">🔥 수험생 영양제</span><span class="rising-tag">🔥 임산부 영양제</span><span class="rising-tag">🔥 다이 소 영양제</span></div>
   </div>
 
+  <!-- Row 1: 기존 4개 섹션 -->
   <div class="row">
-    <!-- 국내 순위 -->
     <div class="col-md-6 col-xl-3">
       <div class="card">
         <div class="card-header"><span class="section-icon">📊</span>국내 인기 순위</div>
-        <div class="card-body p-2">
-          <table><tbody><tr><td class="rank">1</td><td>오메가3</td><td><div class="bar" style="width:98.59781%">99</div></td></tr><tr><td class="rank">2</td><td>글루타치온</td><td><div class="bar" style="width:85.25655%">85</div></td></tr><tr><td class="rank">3</td><td>마그네슘</td><td><div class="bar" style="width:54.62417%">55</div></td></tr><tr><td class="rank">4</td><td>코엔자임Q10</td><td><div class="bar" style="width:50.16244%">50</div></td></tr><tr><td class="rank">5</td><td>유산균</td><td><div class="bar" style="width:42.26776%">42</div></td></tr><tr><td class="rank">6</td><td>크레아틴</td><td><div class="bar" style="width:41.6299%">42</div></td></tr><tr><td class="rank">7</td><td>루테인</td><td><div class="bar" style="width:37.29694%">37</div></td></tr><tr><td class="rank">8</td><td>콜라겐</td><td><div class="bar" style="width:28.8796%">29</div></td></tr><tr><td class="rank">9</td><td>비오틴</td><td><div class="bar" style="width:28.62781%">29</div></td></tr><tr><td class="rank">10</td><td>단백질보충제</td><td><div class="bar" style="width:23.24123%">23</div></td></tr><tr><td class="rank">11</td><td>엽산</td><td><div class="bar" style="width:20.15323%">20</div></td></tr><tr><td class="rank">12</td><td>비타민</td><td><div class="bar" style="width:17.09586%">17</div></td></tr><tr><td class="rank">13</td><td>프로바이오틱스</td><td><div class="bar" style="width:16.2675%">16</div></td></tr><tr><td class="rank">14</td><td>아연</td><td><div class="bar" style="width:11.95652%">12</div></td></tr><tr><td class="rank">15</td><td>밀크시슬</td><td><div class="bar" style="width:11.14359%">11</div></td></tr></tbody></table>
-        </div>
+        <div class="card-body p-2"><table><tbody><tr><td class="rank">1</td><td>오메가3</td><td><div class="bar" style="width:98.59781%">99</div></td></tr><tr><td class="rank">2</td><td>글루타치온</td><td><div class="bar" style="width:85.25655%">85</div></td></tr><tr><td class="rank">3</td><td>마그네슘</td><td><div class="bar" style="width:54.62417%">55</div></td></tr><tr><td class="rank">4</td><td>코엔자임Q10</td><td><div class="bar" style="width:50.16244%">50</div></td></tr><tr><td class="rank">5</td><td>유산균</td><td><div class="bar" style="width:42.26776%">42</div></td></tr><tr><td class="rank">6</td><td>크레아틴</td><td><div class="bar" style="width:41.6299%">42</div></td></tr><tr><td class="rank">7</td><td>루테인</td><td><div class="bar" style="width:37.29694%">37</div></td></tr><tr><td class="rank">8</td><td>콜라겐</td><td><div class="bar" style="width:28.8796%">29</div></td></tr><tr><td class="rank">9</td><td>비오틴</td><td><div class="bar" style="width:28.62781%">29</div></td></tr><tr><td class="rank">10</td><td>단백질보충제</td><td><div class="bar" style="width:23.24123%">23</div></td></tr><tr><td class="rank">11</td><td>엽산</td><td><div class="bar" style="width:20.15323%">20</div></td></tr><tr><td class="rank">12</td><td>비타민</td><td><div class="bar" style="width:17.09586%">17</div></td></tr><tr><td class="rank">13</td><td>프로바이오틱스</td><td><div class="bar" style="width:16.2675%">16</div></td></tr><tr><td class="rank">14</td><td>아연</td><td><div class="bar" style="width:11.95652%">12</div></td></tr><tr><td class="rank">15</td><td>밀크시슬</td><td><div class="bar" style="width:11.14359%">11</div></td></tr></tbody></table></div>
       </div>
     </div>
-
-    <!-- 글로벌 트랜드 -->
     <div class="col-md-6 col-xl-3">
       <div class="card">
         <div class="card-header"><span class="section-icon">🌍</span>글로벌 트랜드</div>
-        <div class="card-body p-2">
-          <table><tbody><tr><td class="rank">1</td><td>magnesium</td><td><div class="bar bar-green" style="width:57%">57</div></td></tr><tr><td class="rank">2</td><td>collagen</td><td><div class="bar bar-green" style="width:39%">39</div></td></tr><tr><td class="rank">3</td><td>omega 3</td><td><div class="bar bar-green" style="width:23%">23</div></td></tr><tr><td class="rank">4</td><td>probiotic</td><td><div class="bar bar-green" style="width:12%">12</div></td></tr><tr><td class="rank">5</td><td>vitamin supplement</td><td><div class="bar bar-green" style="width:3%">3</div></td></tr></tbody></table>
-        </div>
+        <div class="card-body p-2"><table><tbody><tr><td class="rank">1</td><td>magnesium</td><td><div class="bar bar-green" style="width:54%">54</div></td></tr><tr><td class="rank">2</td><td>collagen</td><td><div class="bar bar-green" style="width:38%">38</div></td></tr><tr><td class="rank">3</td><td>omega 3</td><td><div class="bar bar-green" style="width:22%">22</div></td></tr><tr><td class="rank">4</td><td>probiotic</td><td><div class="bar bar-green" style="width:11%">11</div></td></tr><tr><td class="rank">5</td><td>vitamin supplement</td><td><div class="bar bar-green" style="width:2%">2</div></td></tr></tbody></table></div>
       </div>
     </div>
-
-    <!-- SNS 키워드 -->
     <div class="col-md-6 col-xl-3">
       <div class="card">
         <div class="card-header"><span class="section-icon">💬</span>SNS 화제 키워드</div>
-        <div class="card-body"><span class="tag" style="font-size:22px">#비타민 <small>13</small></span><span class="tag" style="font-size:22px">#아연 <small>11</small></span><span class="tag" style="font-size:22px">#유산균 <small>10</small></span><span class="tag" style="font-size:22px">#오메가3 <small>10</small></span><span class="tag" style="font-size:22px">#콜라겐 <small>10</small></span><span class="tag" style="font-size:22px">#홍삼 <small>10</small></span><span class="tag" style="font-size:22px">#프로바이오틱스 <small>10</small></span><span class="tag" style="font-size:22px">#마그네슘 <small>10</small></span><span class="tag" style="font-size:22px">#철분 <small>10</small></span><span class="tag" style="font-size:22px">#칼슘 <small>10</small></span><span class="tag" style="font-size:22px">#루테인 <small>10</small></span><span class="tag" style="font-size:22px">#밀크시슬 <small>10</small></span><span class="tag" style="font-size:22px">#가르시니아 <small>10</small></span><span class="tag" style="font-size:22px">#NAD <small>10</small></span><span class="tag" style="font-size:22px">#코엔자임Q10 <small>10</small></span><span class="tag" style="font-size:22px">#글루타치온 <small>10</small></span><span class="tag" style="font-size:22px">#비오틴 <small>10</small></span><span class="tag" style="font-size:22px">#엽산 <small>10</small></span><span class="tag" style="font-size:22px">#크레아틴 <small>10</small></span><span class="tag" style="font-size:22px">#단백질보충제 <small>10</small></span></div>
+        <div class="card-body"><span class="tag" style="font-size:22px">#비타민 <small>12</small></span><span class="tag" style="font-size:22px">#아연 <small>11</small></span><span class="tag" style="font-size:22px">#유산균 <small>10</small></span><span class="tag" style="font-size:22px">#오메가3 <small>10</small></span><span class="tag" style="font-size:22px">#콜라겐 <small>10</small></span><span class="tag" style="font-size:22px">#홍삼 <small>10</small></span><span class="tag" style="font-size:22px">#프로바이오틱스 <small>10</small></span><span class="tag" style="font-size:22px">#마그네슘 <small>10</small></span><span class="tag" style="font-size:22px">#철분 <small>10</small></span><span class="tag" style="font-size:22px">#칼슘 <small>10</small></span><span class="tag" style="font-size:22px">#루테인 <small>10</small></span><span class="tag" style="font-size:22px">#밀크시슬 <small>10</small></span><span class="tag" style="font-size:22px">#가르시니아 <small>10</small></span><span class="tag" style="font-size:22px">#NAD <small>10</small></span><span class="tag" style="font-size:22px">#코엔자임Q10 <small>10</small></span><span class="tag" style="font-size:22px">#글루타치온 <small>10</small></span><span class="tag" style="font-size:22px">#비오틴 <small>10</small></span><span class="tag" style="font-size:22px">#엽산 <small>10</small></span><span class="tag" style="font-size:22px">#크레아틴 <small>10</small></span><span class="tag" style="font-size:22px">#단백질보충제 <small>10</small></span></div>
       </div>
     </div>
-
-    <!-- 뉴스/연구 -->
     <div class="col-md-6 col-xl-3">
       <div class="card">
-        <div class="card-header"><span class="section-icon">📰</span>뉴스 / 연구 동향</div>
-        <div class="card-body p-2"></div>
+        <div class="card-header"><span class="section-icon">📰</span>국내 뉴스</div>
+        <div class="card-body p-2"><span class="text-muted small">데이터 수집 중...</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2: 연구동향 3개 섹션 -->
+  <div class="row">
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header research">
+          <span class="section-icon">🔬</span>연구·임상 동향
+          <span class="section-label label-research">Research</span>
+        </div>
+        <div class="card-body p-2"><span class="text-muted small">데이터 수집 중...</span></div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header regulatory">
+          <span class="section-icon">🏛</span>식약처·규제 동향
+          <span class="section-label label-regulatory">Regulatory</span>
+        </div>
+        <div class="card-body p-2"><span class="text-muted small">데이터 수집 중...</span></div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header overseas">
+          <span class="section-icon">🌐</span>해외 업계 동향
+          <span class="section-label label-overseas">Global</span>
+        </div>
+        <div class="card-body p-2"><div class="news-item"><a href="https://www.nutraceuticalsworld.com/building-stronger-supply-chains-through-global-reach-and-personal-service/" target="_blank">Building Stronger Supply Chains Through Global Reach and Personal Service</a><span class="news-date news-source">[Nutraceuticals World] Mon, 29 Jun 2026</span></div><div class="news-item"><a href="https://www.nutraceuticalsworld.com/what-the-science-says-about-full-spectrum-mushroom-ingredients/" target="_blank">What the Science Says About Full-Spectrum Mushroom Ingredients</a><span class="news-date news-source">[Nutraceuticals World] Thu, 25 Jun 2026</span></div></div>
       </div>
     </div>
   </div>
