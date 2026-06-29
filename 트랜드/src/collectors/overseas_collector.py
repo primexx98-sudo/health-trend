@@ -6,11 +6,12 @@ from email.utils import parsedate_to_datetime
 
 logger = logging.getLogger(__name__)
 
-# ─── 해외 RSS 피드 목록 (직접 추가/수정 가능) ──────────────────────
+# ─── 해외 RSS 피드 (직접 추가/수정 가능) ──────────────────────────
 RSS_FEEDS = [
     {"name": "Nutraceuticals World", "url": "https://www.nutraceuticalsworld.com/rss/"},
-    {"name": "Natural Products Insider", "url": "https://www.naturalproductsinsider.com/rss"},
-    {"name": "Nutritional Outlook", "url": "https://www.nutritionaloutlook.com/rss/all"},
+    {"name": "Natural Products Insider", "url": "https://www.naturalproductsinsider.com/rss/all"},
+    {"name": "NutraIngredients USA", "url": "https://www.nutraingredients-usa.com/var/export/rss/"},
+    {"name": "Nutritional Outlook", "url": "https://www.nutritionaloutlook.com/rss"},
 ]
 
 RELEVANT_KEYWORDS = [
@@ -18,7 +19,8 @@ RELEVANT_KEYWORDS = [
     "nutraceutical", "functional food", "ingredient", "clinical",
     "health benefit", "antioxidant", "mineral", "herbal",
     "gut health", "immunity", "magnesium", "NAD", "NMN",
-    "prebiotic", "adaptogen", "bioavailability", "extract"
+    "prebiotic", "adaptogen", "bioavailability", "extract",
+    "protein", "fiber", "omega-3", "botanical", "phytochemical"
 ]
 # ──────────────────────────────────────────────────────────────────
 
@@ -42,11 +44,11 @@ def parse_rss(feed_info):
     try:
         resp = requests.get(
             feed_info["url"], timeout=15,
-            headers={"User-Agent": "Mozilla/5.0"}
+            headers={"User-Agent": "Mozilla/5.0 (compatible; HealthBot/1.0)"}
         )
         resp.raise_for_status()
         soup = BeautifulSoup(resp.content, "lxml-xml")
-        for item in soup.find_all("item")[:20]:
+        for item in soup.find_all("item")[:25]:
             title_tag = item.find("title")
             link_tag = item.find("link")
             pub_tag = item.find("pubDate")
@@ -58,7 +60,9 @@ def parse_rss(feed_info):
             title_text = title_tag.get_text(strip=True)
             link_text = link_tag.get_text(strip=True) if link_tag else ""
             pub_text = pub_tag.get_text(strip=True) if pub_tag else ""
-            desc_text = BeautifulSoup(desc_tag.get_text(strip=True), "html.parser").get_text()[:200] if desc_tag else ""
+            desc_text = BeautifulSoup(
+                desc_tag.get_text(strip=True), "html.parser"
+            ).get_text()[:250] if desc_tag else ""
 
             if not is_recent(pub_text, days=14):
                 continue
@@ -72,6 +76,7 @@ def parse_rss(feed_info):
                 "source": feed_info["name"],
                 "description": desc_text,
             })
+        logger.info(f"[{feed_info['name']}] {len(items)}건 수집")
     except Exception as e:
         logger.warning(f"RSS 수집 실패 [{feed_info['name']}]: {e}")
     return items
@@ -85,5 +90,5 @@ def get_overseas_news():
             if item["title"] not in seen:
                 seen.add(item["title"])
                 all_items.append(item)
-    logger.info(f"해외 업계 동향 {len(all_items)}건 수집")
+    logger.info(f"해외 업계 동향 합계 {len(all_items)}건")
     return all_items[:10]
