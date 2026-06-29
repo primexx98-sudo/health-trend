@@ -15,7 +15,8 @@ HEALTH_KEYWORDS = [
     "마그네슘", "건강기능식품", "프로바이오틱스", "글루타치온",
     "코엔자임", "루테인", "아연", "칼슘", "철분", "보충제",
     "크레아틴", "밀크시슬", "엽산", "비오틴", "NAD", "NMN",
-    "면역", "항산화", "장건강", "피로회복", "식품의약품안전처"
+    "면역", "항산화", "장건강", "피로회복", "식품의약품안전처",
+    "건강", "영양", "성분", "효능", "식품", "약"
 ]
 
 EXCLUDE_KEYWORDS = [
@@ -33,11 +34,15 @@ REGULATORY_KEYWORDS = [
     "승인", "행정처분", "개정", "안전성 평가", "식품의약품안전처"
 ]
 
-# ─── 국내 건강 뉴스 RSS 피드 (직접 추가/수정 가능) ────────────────
+# ─── 국내 건강 뉴스 RSS (직접 추가/수정 가능) ────────────────────
+# trusted=True 피드는 건강 전문 매체로 키워드 필터 완화 적용
 KOREAN_RSS_FEEDS = [
-    {"name": "연합뉴스 건강", "url": "https://www.yna.co.kr/rss/health.xml"},
-    {"name": "헬스조선", "url": "https://health.chosun.com/site/data/rss/rss.xml"},
-    {"name": "메디컬투데이", "url": "http://www.mdtoday.co.kr/rss/allArticle.xml"},
+    {"name": "연합뉴스 건강", "url": "https://www.yna.co.kr/rss/health.xml", "trusted": True},
+    {"name": "헬스조선", "url": "https://health.chosun.com/site/data/rss/rss.xml", "trusted": True},
+    {"name": "약업신문", "url": "http://www.yakup.com/rss/all.xml", "trusted": True},
+    {"name": "데일리팜", "url": "http://www.dailypharm.com/rss/allArticle.xml", "trusted": True},
+    {"name": "식품음료신문", "url": "http://www.thinkfood.co.kr/rss/allArticle.xml", "trusted": True},
+    {"name": "뉴스1 생활", "url": "https://www.news1.kr/rss/life.xml", "trusted": False},
 ]
 # ──────────────────────────────────────────────────────────────────
 
@@ -77,10 +82,13 @@ def is_recent(pub_date_str, days=14):
         return True
 
 
-def is_relevant(title, desc=""):
+def is_relevant(title, desc="", trusted_source=False):
     combined = title + " " + desc
     if any(ex in combined for ex in EXCLUDE_KEYWORDS):
         return False
+    if trusted_source:
+        # 건강 전문 매체는 키워드 필터 완화 (제목에 1개만 있어도 통과)
+        return len(title) > 5
     return any(kw in title for kw in HEALTH_KEYWORDS) or \
            any(kw in desc for kw in HEALTH_KEYWORDS)
 
@@ -108,21 +116,27 @@ def get_naver_news(query, display=10):
         if "errorCode" in data:
             logger.warning(f"Naver API 오류 [{query}]: {data.get('errorMessage')} (code={data.get('errorCode')})")
             return []
-        return data.get("items", [])
+        items = data.get("items", [])
+        if not items:
+            logger.debug(f"Naver 검색 결과 없음 [{query}] — Search API 권한 확인 필요")
+        return items
     except Exception as e:
         logger.error(f"뉴스 수집 실패 [{query}]: {e}")
         return []
 
 
 def get_korean_rss_news():
-    """Naver API 없이도 동작하는 국내 건강뉴스 RSS 수집"""
     all_items, seen = [], set()
     for feed in KOREAN_RSS_FEEDS:
         try:
-            resp = requests.get(feed["url"], timeout=15, headers={"User-Agent": "Mozilla/5.0"})
+            resp = requests.get(
+                feed["url"], timeout=15,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; HealthBot/1.0)"}
+            )
             resp.raise_for_status()
             soup = BeautifulSoup(resp.content, "lxml-xml")
-            for item in soup.find_all("item")[:20]:
+            items_found = 0
+            for item in soup.find_all("item")[:30]:
                 title_tag = item.find("title")
                 link_tag = item.find("link")
                 pub_tag = item.find("pubDate")
@@ -131,16 +145,16 @@ def get_korean_rss_news():
                 if not title_tag:
                     continue
 
-                title = BeautifulSoup(title_tag.get_text(strip=True), "html.parser").get_text()
+                title = BeautifulSoup(title_tag.get_text(strip=True), "html.parser").get_text().strip()
                 link = link_tag.get_text(strip=True) if link_tag else ""
                 pub = pub_tag.get_text(strip=True) if pub_tag else ""
-                desc = BeautifulSoup(desc_tag.get_text(strip=True), "html.parser").get_text()[:200] if desc_tag else ""
+                desc = BeautifulSoup(desc_tag.get_text(strip=True), "html.parser").get_text()[:300] if desc_tag else ""
 
-                if title in seen:
+                if title in seen or len(title) < 5:
                     continue
                 if not is_recent(pub, days=7):
                     continue
-                if not is_relevant(title, desc):
+                if not is_relevant(title, desc, trusted_source=feed.get("trusted", False)):
                     continue
 
                 seen.add(title)
@@ -152,9 +166,12 @@ def get_korean_rss_news():
                     "category": categorize(title, desc),
                     "source": feed["name"],
                 })
+                items_found += 1
+            logger.info(f"[{feed['name']}] {items_found}건 수집")
         except Exception as e:
             logger.warning(f"RSS 수집 실패 [{feed['name']}]: {e}")
-    logger.info(f"국내 RSS 뉴스 {len(all_items)}건 수집")
+
+    logger.info(f"국내 RSS 뉴스 합계 {len(all_items)}건")
     return all_items
 
 
@@ -187,8 +204,6 @@ def collect_all_news():
     general_items = _collect_from_queries(QUERIES_GENERAL, days=7)
     research_items = _collect_from_queries(QUERIES_RESEARCH, days=30)
     regulatory_items = _collect_from_queries(QUERIES_REGULATORY, days=30)
-
-    # Naver API 결과가 없으면 RSS로 보완
     rss_items = get_korean_rss_news()
 
     seen = set()
@@ -209,7 +224,6 @@ def collect_all_news():
             seen.add(item["title"])
             general.append(item)
 
-    # RSS 보완
     for item in rss_items:
         if item["title"] not in seen:
             seen.add(item["title"])
