@@ -13,56 +13,44 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
         f'<td><div class="bar" style="width:{min(d["ratio"],100)}%">{d["ratio"]:.0f}</div></td></tr>'
         for i, d in enumerate(naver_data[:15])
     )
-
     google_rows = "".join(
         f'<tr><td class="rank">{i+1}</td><td>{d["keyword"]}</td>'
         f'<td><div class="bar bar-green" style="width:{min(d["ratio"],100)}%">{d["ratio"]}</div></td></tr>'
         for i, d in enumerate(google_data[:10])
     )
-
     sns_tags = "".join(
         f'<span class="tag" style="font-size:{min(14+d["count"],22)}px">{d["tag"]} <small>{d["count"]}</small></span>'
         for d in sns_data[:20]
     )
-
-    # 국내 일반 뉴스
     news_items = "".join(
         f'<div class="news-item"><a href="{n["link"]}" target="_blank">{n["title"]}</a>'
         f'<span class="news-date">{n["pubDate"][:16]}</span></div>'
         for n in news_data.get("news", [])
     )
-
-    # 연구·임상 동향
     research_items = "".join(
         f'<div class="news-item"><a href="{n["link"]}" target="_blank">🔬 {n["title"]}</a>'
         f'<span class="news-date">{n["pubDate"][:16]}</span></div>'
         for n in news_data.get("research", [])
     )
-
-    # 식약처·규제 동향
     regulatory_items = "".join(
         f'<div class="news-item"><a href="{n["link"]}" target="_blank">🏛 {n["title"]}</a>'
         f'<span class="news-date">{n["pubDate"][:16]}</span></div>'
         for n in news_data.get("regulatory", [])
     )
-
-    # 해외 업계 동향
+    # 번역된 제목(title_ko) 있으면 우선 표시, 없으면 영문 원문
     overseas_items = "".join(
         f'<div class="news-item">'
-        f'<a href="{n["link"]}" target="_blank">{n["title"]}</a>'
+        f'<a href="{n["link"]}" target="_blank">{n.get("title_ko", n["title"])}</a>'
         f'<span class="news-date news-source">[{n["source"]}] {n["pubDate"][:16]}</span>'
         f'</div>'
         for n in overseas_data
     )
-
     rising_tags = "".join(
         f'<span class="rising-tag">🔥 {r["keyword"]}</span>'
         for r in rising_data[:8]
     )
-
     chart_labels = json.dumps([d["keyword"] for d in naver_data[:7]])
     chart_values = json.dumps([d["ratio"] for d in naver_data[:7]])
-
     no_data = '<span class="text-muted small">데이터 수집 중...</span>'
 
     html = f"""<!DOCTYPE html>
@@ -109,16 +97,11 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
   <h1>🌿 건강기능식품 트랜드 대시보드</h1>
   <div class="date">{today} &nbsp;|&nbsp; 매일 오전 9시 자동 업데이트</div>
 </div>
-
 <div class="container-fluid px-4">
-
-  <!-- 급상승 키워드 배너 -->
   <div class="card mb-3">
     <div class="card-header">⚡ 오늘의 급상승 키워드</div>
     <div class="card-body py-2">{rising_tags if rising_tags else no_data}</div>
   </div>
-
-  <!-- Row 1: 기존 4개 섹션 -->
   <div class="row">
     <div class="col-md-6 col-xl-3">
       <div class="card">
@@ -145,8 +128,6 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
       </div>
     </div>
   </div>
-
-  <!-- Row 2: 연구동향 3개 섹션 -->
   <div class="row">
     <div class="col-md-4">
       <div class="card">
@@ -176,17 +157,11 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
       </div>
     </div>
   </div>
-
-  <!-- 주간 트랜드 차트 -->
   <div class="card">
     <div class="card-header"><span class="section-icon">📈</span>국내 Top 7 키워드 검색량 비교</div>
-    <div class="card-body">
-      <canvas id="trendChart" height="80"></canvas>
-    </div>
+    <div class="card-body"><canvas id="trendChart" height="80"></canvas></div>
   </div>
-
 </div>
-
 <script>
 const ctx = document.getElementById('trendChart').getContext('2d');
 new Chart(ctx, {{
@@ -211,5 +186,4 @@ new Chart(ctx, {{
 </script>
 </body>
 </html>"""
-
     return html, today_file
