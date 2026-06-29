@@ -2,7 +2,9 @@ from datetime import datetime
 import os
 import json
 
-def generate_html(naver_data, google_data, sns_data, news_data, rising_data):
+def generate_html(naver_data, google_data, sns_data, news_data, rising_data, overseas_data=None):
+    if overseas_data is None:
+        overseas_data = []
     today = datetime.now().strftime("%Y년 %m월 %d일 (%a)")
     today_file = datetime.now().strftime("%Y%m%d")
 
@@ -23,15 +25,34 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data):
         for d in sns_data[:20]
     )
 
+    # 국내 일반 뉴스
     news_items = "".join(
         f'<div class="news-item"><a href="{n["link"]}" target="_blank">{n["title"]}</a>'
         f'<span class="news-date">{n["pubDate"][:16]}</span></div>'
         for n in news_data.get("news", [])
     )
 
-    mfds_items = "".join(
-        f'<div class="news-item mfds"><a href="{m["link"]}" target="_blank">🏛 {m["title"]}</a></div>'
-        for m in news_data.get("mfds", [])
+    # 연구·임상 동향
+    research_items = "".join(
+        f'<div class="news-item"><a href="{n["link"]}" target="_blank">🔬 {n["title"]}</a>'
+        f'<span class="news-date">{n["pubDate"][:16]}</span></div>'
+        for n in news_data.get("research", [])
+    )
+
+    # 식약처·규제 동향
+    regulatory_items = "".join(
+        f'<div class="news-item"><a href="{n["link"]}" target="_blank">🏛 {n["title"]}</a>'
+        f'<span class="news-date">{n["pubDate"][:16]}</span></div>'
+        for n in news_data.get("regulatory", [])
+    )
+
+    # 해외 업계 동향
+    overseas_items = "".join(
+        f'<div class="news-item">'
+        f'<a href="{n["link"]}" target="_blank">{n["title"]}</a>'
+        f'<span class="news-date news-source">[{n["source"]}] {n["pubDate"][:16]}</span>'
+        f'</div>'
+        for n in overseas_data
     )
 
     rising_tags = "".join(
@@ -41,6 +62,8 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data):
 
     chart_labels = json.dumps([d["keyword"] for d in naver_data[:7]])
     chart_values = json.dumps([d["ratio"] for d in naver_data[:7]])
+
+    no_data = '<span class="text-muted small">데이터 수집 중...</span>'
 
     html = f"""<!DOCTYPE html>
 <html lang="ko">
@@ -57,6 +80,9 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data):
   .header .date {{ opacity: 0.85; font-size: 0.95rem; }}
   .card {{ border: none; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); margin-bottom: 20px; }}
   .card-header {{ background: #fff; border-bottom: 2px solid #e9ecef; border-radius: 12px 12px 0 0 !important; font-weight: 700; font-size: 1rem; padding: 14px 18px; }}
+  .card-header.research {{ border-bottom-color: #d0ebff; }}
+  .card-header.regulatory {{ border-bottom-color: #fff3bf; }}
+  .card-header.overseas {{ border-bottom-color: #ffe3e3; }}
   .rank {{ width: 32px; color: #adb5bd; font-weight: 700; }}
   .bar {{ background: #52b788; height: 18px; border-radius: 4px; min-width: 4px; color: white; font-size: 11px; padding: 1px 4px; }}
   .bar-green {{ background: #74c69d; }}
@@ -65,12 +91,17 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data):
   tr:hover {{ background: #f8f9fa; }}
   .tag {{ display: inline-block; background: #d8f3dc; color: #1b4332; border-radius: 20px; padding: 4px 12px; margin: 4px; cursor: default; }}
   .rising-tag {{ display: inline-block; background: #fff3cd; color: #856404; border-radius: 8px; padding: 6px 14px; margin: 4px; font-weight: 600; font-size: 0.9rem; }}
-  .news-item {{ padding: 8px 0; border-bottom: 1px solid #f1f3f5; }}
-  .news-item a {{ color: #2d6a4f; text-decoration: none; font-size: 0.88rem; }}
+  .news-item {{ padding: 7px 0; border-bottom: 1px solid #f1f3f5; }}
+  .news-item:last-child {{ border-bottom: none; }}
+  .news-item a {{ color: #2d6a4f; text-decoration: none; font-size: 0.87rem; line-height: 1.4; }}
   .news-item a:hover {{ text-decoration: underline; }}
-  .news-date {{ display: block; color: #adb5bd; font-size: 0.78rem; }}
-  .mfds {{ background: #f8f9fa; padding: 6px 10px; border-radius: 6px; margin: 4px 0; }}
+  .news-date {{ display: block; color: #adb5bd; font-size: 0.76rem; margin-top: 2px; }}
+  .news-source {{ color: #868e96; }}
   .section-icon {{ margin-right: 6px; }}
+  .section-label {{ font-size: 0.7rem; font-weight: 600; padding: 2px 7px; border-radius: 10px; margin-left: 6px; vertical-align: middle; }}
+  .label-research {{ background: #d0ebff; color: #1864ab; }}
+  .label-regulatory {{ background: #fff3bf; color: #7d6608; }}
+  .label-overseas {{ background: #ffe3e3; color: #c92a2a; }}
 </style>
 </head>
 <body>
@@ -84,43 +115,64 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data):
   <!-- 급상승 키워드 배너 -->
   <div class="card mb-3">
     <div class="card-header">⚡ 오늘의 급상승 키워드</div>
-    <div class="card-body py-2">{rising_tags if rising_tags else '<span class="text-muted">데이터 수집 중...</span>'}</div>
+    <div class="card-body py-2">{rising_tags if rising_tags else no_data}</div>
   </div>
 
+  <!-- Row 1: 기존 4개 섹션 -->
   <div class="row">
-    <!-- 국내 순위 -->
     <div class="col-md-6 col-xl-3">
       <div class="card">
         <div class="card-header"><span class="section-icon">📊</span>국내 인기 순위</div>
-        <div class="card-body p-2">
-          <table><tbody>{naver_rows}</tbody></table>
-        </div>
+        <div class="card-body p-2"><table><tbody>{naver_rows}</tbody></table></div>
       </div>
     </div>
-
-    <!-- 글로벌 트랜드 -->
     <div class="col-md-6 col-xl-3">
       <div class="card">
         <div class="card-header"><span class="section-icon">🌍</span>글로벌 트랜드</div>
-        <div class="card-body p-2">
-          <table><tbody>{google_rows}</tbody></table>
-        </div>
+        <div class="card-body p-2"><table><tbody>{google_rows}</tbody></table></div>
       </div>
     </div>
-
-    <!-- SNS 키워드 -->
     <div class="col-md-6 col-xl-3">
       <div class="card">
         <div class="card-header"><span class="section-icon">💬</span>SNS 화제 키워드</div>
-        <div class="card-body">{sns_tags if sns_tags else '<span class="text-muted">데이터 수집 중...</span>'}</div>
+        <div class="card-body">{sns_tags if sns_tags else no_data}</div>
       </div>
     </div>
-
-    <!-- 뉴스/연구 -->
     <div class="col-md-6 col-xl-3">
       <div class="card">
-        <div class="card-header"><span class="section-icon">📰</span>뉴스 / 연구 동향</div>
-        <div class="card-body p-2">{news_items}{mfds_items}</div>
+        <div class="card-header"><span class="section-icon">📰</span>국내 뉴스</div>
+        <div class="card-body p-2">{news_items if news_items else no_data}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2: 연구동향 3개 섹션 -->
+  <div class="row">
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header research">
+          <span class="section-icon">🔬</span>연구·임상 동향
+          <span class="section-label label-research">Research</span>
+        </div>
+        <div class="card-body p-2">{research_items if research_items else no_data}</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header regulatory">
+          <span class="section-icon">🏛</span>식약처·규제 동향
+          <span class="section-label label-regulatory">Regulatory</span>
+        </div>
+        <div class="card-body p-2">{regulatory_items if regulatory_items else no_data}</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header overseas">
+          <span class="section-icon">🌐</span>해외 업계 동향
+          <span class="section-label label-overseas">Global</span>
+        </div>
+        <div class="card-body p-2">{overseas_items if overseas_items else no_data}</div>
       </div>
     </div>
   </div>
