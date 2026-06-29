@@ -1,12 +1,9 @@
-import requests
-import json
-import os
 import logging
 from datetime import datetime
+import json, os
 
 logger = logging.getLogger(__name__)
 
-TRANSLATE_API_KEY = os.environ.get("GOOGLE_TRANSLATE_API_KEY", "")
 MONTHLY_LIMIT = 490_000
 
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -31,21 +28,15 @@ def _save_usage(usage):
 
 
 def translate_text(text):
-    if not TRANSLATE_API_KEY or not text:
+    if not text:
         return None
     usage = _load_usage()
     if usage["chars_used"] + len(text) > MONTHLY_LIMIT:
-        logger.warning(f"Google 번역 월 한도 초과 ({usage['chars_used']:,}/{MONTHLY_LIMIT:,}자) — 영문 표시")
+        logger.warning(f"번역 월 한도 초과 ({usage['chars_used']:,}/{MONTHLY_LIMIT:,}자) — 영문 표시")
         return None
     try:
-        resp = requests.post(
-            "https://translation.googleapis.com/language/translate/v2",
-            params={"key": TRANSLATE_API_KEY},
-            json={"q": text, "target": "ko", "source": "en"},
-            timeout=10,
-        )
-        resp.raise_for_status()
-        translated = resp.json()["data"]["translations"][0]["translatedText"]
+        from deep_translator import GoogleTranslator
+        translated = GoogleTranslator(source="en", target="ko").translate(text)
         usage["chars_used"] += len(text)
         _save_usage(usage)
         return translated
@@ -56,8 +47,7 @@ def translate_text(text):
 
 def translate_overseas_items(items):
     usage = _load_usage()
-    remaining = MONTHLY_LIMIT - usage["chars_used"]
-    logger.info(f"번역 잔여 한도: {remaining:,}자")
+    logger.info(f"번역 잔여 한도: {MONTHLY_LIMIT - usage['chars_used']:,}자")
     for item in items:
         translated = translate_text(item["title"])
         item["title_ko"] = translated if translated else item["title"]
