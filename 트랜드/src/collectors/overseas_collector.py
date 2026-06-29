@@ -1,4 +1,7 @@
 import requests
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from translator import translate_overseas_items
 import logging
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta, timezone
@@ -110,4 +113,5 @@ def get_overseas_news():
                 seen.add(item["title"])
                 all_items.append(item)
     logger.info(f"해외 업계 동향 합계 {len(all_items)}건")
-    return all_items[:12]
+    all_items = translate_overseas_items(all_items[:12])
+    return all_items
