@@ -44,7 +44,7 @@
 <div class="header mb-4">
   <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
     <h1 class="mb-0">🌿 건강기능식품 트랜드 대시보드</h1>
-    <select class="date-select" onchange="location.href=this.value" title="과거 날짜 조회"><option value="index.html" selected>2026-06-30 (오늘)</option><option value="dashboard_20260629.html">2026-06-29</option><option value="dashboard_20260628.html">2026-06-28</option></select>
+    <select id="date-select" class="date-select" title="과거 날짜 조회"></select>
   </div>
   <div class="date mt-1">2026년 06월 30일 (Tue) &nbsp;|&nbsp; 매일 오전 9시 자동 업데이트</div>
 </div>
@@ -126,7 +126,7 @@
           <span class="section-label label-overseas">Global</span>
         </div>
         <div class="card-body p-2">
-          <div class="news-item"><a href="https://www.nutraceuticalsworld.com/building-stronger-supply-chains-through-global-reach-and-personal-service/" target="_blank">글로벌 범위와 개인 맞춤 서비스를 통한 더 강력한 공급망 구축</a><span class="news-date news-source">[Nutraceuticals World] Mon, 29 Jun 2026</span></div><div class="news-item"><a href="https://www.nutraceuticalsworld.com/what-the-science-says-about-full-spectrum-mushroom-ingredients/" target="_blank">전체 스펙트럼 버섯 성분에 대한 과학적 견해</a><span class="news-date news-source">[Nutraceuticals World] Thu, 25 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260624025511.htm" target="_blank">골감소증은 수백만 명의 사람들의 뼈를 조용히 약화시키고 있습니다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Thu, 25 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260623083116.htm" target="_blank">이 흔한 비타민 결핍은 정상적인 노화와 유사하게 나타날 수 있습니다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Thu, 25 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260623083104.htm" target="_blank">연구는 비타민 D와 햇빛에 대한 일반적인 믿음에 도전한다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Wed, 24 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260622014300.htm" target="_blank">수백만 명이 뇌 건강을 위해 오메가-3 생선 기름을 섭취하지만, 새로운 연구에서는 효과가 없다는 결과를 발견했다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Mon, 29 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260621060318.htm" target="_blank">한 가지 흔한 지방은 제2형 당뇨병을 촉진할 수 있는 반면, 다른 지방은 이를 극복하는 데 도움을 줄 수 있다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Sun, 21 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260614012011.htm" target="_blank">과학자들은 당신 음식에 들어 있는 대부분의 것들이 여전히 미스터리라고 말합니다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Wed, 17 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260623083106.htm" target="_blank">연구자들은 과당이 포도당처럼 배고픔을 채우지 못하는 이유를 발견했다</a><span class="news-date news-source">[ScienceDaily — Nutrition] Fri, 26 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260622091429.htm" target="_blank">과학자들은 대부분의 사람들이 현재 지침이 제안하는 것보다 더 많은 단백질이 필요하다고 말합니다</a><span class="news-date news-source">[ScienceDaily — Nutrition] Mon, 22 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260621060313.htm" target="_blank">당신의 콤부차 속 차는 맛 이상의 것을 바꿉니다</a><span class="news-date news-source">[ScienceDaily — Nutrition] Tue, 23 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260622014313.htm" target="_blank">흔한 비타민이 가장 치명적인 뇌암 중 하나를 싸우는 데 도움을 줄 수 있다</a><span class="news-date news-source">[ScienceDaily — Vitamins] Mon, 22 Jun 2026</span></div>
+          <div class="news-item"><a href="https://www.nutraceuticalsworld.com/building-stronger-supply-chains-through-global-reach-and-personal-service/" target="_blank">글로벌 범위와 개인 맞춤 서비스를 통한 더 강력한 공급망 구축</a><span class="news-date news-source">[Nutraceuticals World] Mon, 29 Jun 2026</span></div><div class="news-item"><a href="https://www.nutraceuticalsworld.com/what-the-science-says-about-full-spectrum-mushroom-ingredients/" target="_blank">전체 스펙트럼 버섯 성분에 대한 과학적 견해</a><span class="news-date news-source">[Nutraceuticals World] Thu, 25 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260624025511.htm" target="_blank">골감소증은 수백만 명의 사람들의 뼈를 조용히 약화시키고 있습니다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Thu, 25 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260623083116.htm" target="_blank">이 흔한 비타민 결핍은 정상적인 노화와 유사하게 나타날 수 있습니다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Thu, 25 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260623083104.htm" target="_blank">연구는 비타민 D와 햇빛에 대한 일반적인 믿음에 도전한다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Wed, 24 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260622014300.htm" target="_blank">수백만 명이 뇌 건강을 위해 오메가-3 생선 기름을 섭취하지만, 새로운 연구에서는 효과가 없다는 결과를 발견했다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Mon, 29 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260621060318.htm" target="_blank">한 가지 일반적인 지방은 제2형 당뇨병을 촉진할 수 있는 반면, 다른 지방은 이를 극복하는 데 도움을 줄 수 있다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Sun, 21 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260614012011.htm" target="_blank">과학자들은 당신 음식에 들어 있는 대부분의 것들이 여전히 미스터리라고 말합니다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Wed, 17 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260623083106.htm" target="_blank">연구자들은 과당이 포도당처럼 배고픔을 채우지 못하는 이유를 발견했다</a><span class="news-date news-source">[ScienceDaily — Nutrition] Fri, 26 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260622091429.htm" target="_blank">과학자들은 대부분의 사람들이 현재 지침이 제안하는 것보다 더 많은 단백질이 필요하다고 말합니다.</a><span class="news-date news-source">[ScienceDaily — Nutrition] Mon, 22 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260621060313.htm" target="_blank">당신의 콤부차 속 차는 맛 이상의 것을 바꿉니다</a><span class="news-date news-source">[ScienceDaily — Nutrition] Tue, 23 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260622014313.htm" target="_blank">흔한 비타민이 가장 치명적인 뇌암 중 하나를 싸우는 데 도움을 줄 수 있다</a><span class="news-date news-source">[ScienceDaily — Vitamins] Mon, 22 Jun 2026</span></div>
           <div class="card-source">출처: ScienceDaily RSS · Nutraceuticals World RSS (자동 번역)</div>
         </div>
       </div>
@@ -161,6 +161,27 @@ new Chart(ctx, {
     scales: { y: { beginAtZero: true } }
   }
 });
+</script>
+<script>
+(function(){
+  var sel = document.getElementById('date-select');
+  if (!sel) return;
+  sel.onchange = function(){ location.href = this.value; };
+  fetch('./history.json')
+    .then(function(r){ return r.json(); })
+    .then(function(dates){
+      var cur = (location.pathname.match(/dashboard_(\d{8})\.html/) || [])[1];
+      dates.forEach(function(d, i){
+        var opt = document.createElement('option');
+        var label = d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6,8);
+        opt.value = i === 0 ? './index.html' : ('./dashboard_'+d+'.html');
+        opt.text  = i === 0 ? label+' (오늘)' : label;
+        if (cur === d || (!cur && i === 0)) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    })
+    .catch(function(){});
+})();
 </script>
 </body>
 </html>

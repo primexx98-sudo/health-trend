@@ -113,5 +113,5 @@ new Chart(ctx, {
   }
 });
 </script>
-</body>
+<select id="date-select" class="date-select" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);border-radius:6px;padding:4px 8px;font-size:0.85rem;cursor:pointer;margin-top:6px;display:block"></select><script>(function(){var sel=document.getElementById("date-select");if(!sel)return;sel.onchange=function(){location.href=this.value;};fetch("./history.json").then(function(r){return r.json();}).then(function(dates){var cur=(location.pathname.match(/dashboard_(\d{8})\.html/)||[])[1];dates.forEach(function(d,i){var opt=document.createElement("option");var label=d.slice(0,4)+"-"+d.slice(4,6)+"-"+d.slice(6,8);opt.value=i===0?"./index.html":"./dashboard_"+d+".html";opt.text=i===0?label+" (오늘)":label;if(cur===d||(!cur&&i===0))opt.selected=true;sel.appendChild(opt);});}).catch(function(){});})();</script></body>
 </html>
