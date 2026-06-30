@@ -58,12 +58,13 @@ def main():
     overseas_data = get_overseas_news()
 
     print("대시보드 생성 중...")
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    # 커밋된 루트 docs/ 에서 기존 백업 파일 스캔 (트랜드/docs/는 미커밋)
+    _repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    _committed_docs = os.path.join(_repo_root, "docs")
     available_dates = sorted(
         [
             (os.path.basename(f)[len("dashboard_"):-len(".html")],)
-            for f in glob.glob(os.path.join(OUTPUT_DIR, "dashboard_????????.html"))
-            if len(os.path.basename(f)) == len("dashboard_YYYYMMDD.html")
+            for f in glob.glob(os.path.join(_committed_docs, "dashboard_????????.html"))
         ],
         reverse=True,
     )
