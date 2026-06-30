@@ -8,7 +8,7 @@ _NAV_JS = """\
   var sel = document.getElementById('date-select');
   if (!sel) return;
   sel.onchange = function(){ location.href = this.value; };
-  fetch('./history.json')
+  fetch('./history.json?v=' + Date.now())
     .then(function(r){ return r.json(); })
     .then(function(dates){
       var cur = (location.pathname.match(/dashboard_(\\d{8})\\.html/) || [])[1];
@@ -17,9 +17,9 @@ _NAV_JS = """\
         var label = d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6,8);
         opt.value = i === 0 ? './index.html' : ('./dashboard_'+d+'.html');
         opt.text  = i === 0 ? label+' (오늘)' : label;
-        if (cur === d || (!cur && i === 0)) opt.selected = true;
         sel.appendChild(opt);
       });
+      sel.value = cur ? ('./dashboard_'+cur+'.html') : './index.html';
     })
     .catch(function(){});
 })();
