@@ -8,11 +8,21 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
     today = datetime.now().strftime("%Y년 %m월 %d일 (%a)")
     today_file = datetime.now().strftime("%Y%m%d")
 
-    naver_rows = "".join(
-        f'<tr><td class="rank">{i+1}</td><td>{d["keyword"]}</td>'
-        f'<td><div class="bar" style="width:{min(d["ratio"],100)}%">{d["ratio"]:.0f}</div></td></tr>'
-        for i, d in enumerate(naver_data[:15])
-    )
+    _medals = ["🥇", "🥈", "🥉"]
+    _bar_colors = ["#1b4332", "#2d6a4f", "#40916c", "#52b788", "#74c69d"]
+
+    def _naver_row(i, d):
+        rank = _medals[i] if i < 3 else str(i + 1)
+        weight = "700" if i < 3 else "400"
+        color = _bar_colors[min(i, 4)]
+        return (f'<tr>'
+                f'<td class="rank">{rank}</td>'
+                f'<td style="font-weight:{weight}">{d["keyword"]}</td>'
+                f'<td><div class="bar" style="width:{min(d["ratio"],100)}%;background:{color}">'
+                f'{d["ratio"]:.0f}</div></td>'
+                f'</tr>')
+
+    naver_rows = "".join(_naver_row(i, d) for i, d in enumerate(naver_data[:15]))
     google_rows = "".join(
         f'<tr><td class="rank">{i+1}</td><td>{d["keyword"]}</td>'
         f'<td><div class="bar bar-green" style="width:{min(d["ratio"],100)}%">{d["ratio"]}</div></td></tr>'
@@ -24,17 +34,17 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
     )
     news_items = "".join(
         f'<div class="news-item"><a href="{n["link"]}" target="_blank">{n["title"]}</a>'
-        f'<span class="news-date">{n["pubDate"][:16]}</span></div>'
+        f'<span class="news-date">{n.get("source", "네이버뉴스")} · {n["pubDate"][:16]}</span></div>'
         for n in news_data.get("news", [])
     )
     research_items = "".join(
         f'<div class="news-item"><a href="{n["link"]}" target="_blank">🔬 {n["title"]}</a>'
-        f'<span class="news-date">{n["pubDate"][:16]}</span></div>'
+        f'<span class="news-date">{n.get("source", "네이버뉴스")} · {n["pubDate"][:16]}</span></div>'
         for n in news_data.get("research", [])
     )
     regulatory_items = "".join(
         f'<div class="news-item"><a href="{n["link"]}" target="_blank">🏛 {n["title"]}</a>'
-        f'<span class="news-date">{n["pubDate"][:16]}</span></div>'
+        f'<span class="news-date">{n.get("source", "네이버뉴스")} · {n["pubDate"][:16]}</span></div>'
         for n in news_data.get("regulatory", [])
     )
     # 번역된 제목(title_ko) 있으면 우선 표시, 없으면 영문 원문
@@ -90,6 +100,7 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
   .label-research {{ background: #d0ebff; color: #1864ab; }}
   .label-regulatory {{ background: #fff3bf; color: #7d6608; }}
   .label-overseas {{ background: #ffe3e3; color: #c92a2a; }}
+  .card-source {{ font-size: 0.7rem; color: #ced4da; border-top: 1px solid #f1f3f5; margin-top: 8px; padding-top: 5px; }}
 </style>
 </head>
 <body>
@@ -100,31 +111,46 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
 <div class="container-fluid px-4">
   <div class="card mb-3">
     <div class="card-header">⚡ 오늘의 급상승 키워드</div>
-    <div class="card-body py-2">{rising_tags if rising_tags else no_data}</div>
+    <div class="card-body py-2">
+      {rising_tags if rising_tags else no_data}
+      <div class="card-source">출처: Google Trends 급상승 검색어 (국내 KR, 최근 1일) · 건기식 무관 키워드 자동 제외</div>
+    </div>
   </div>
   <div class="row">
     <div class="col-md-6 col-xl-3">
       <div class="card">
         <div class="card-header"><span class="section-icon">📊</span>국내 인기 순위</div>
-        <div class="card-body p-2"><table><tbody>{naver_rows}</tbody></table></div>
+        <div class="card-body p-2">
+          <table><tbody>{naver_rows}</tbody></table>
+          <div class="card-source">산출기준: 네이버 데이터랩 검색량 지수 (최근 7일, 건강기능식품 주요 키워드 비교)</div>
+        </div>
       </div>
     </div>
     <div class="col-md-6 col-xl-3">
       <div class="card">
         <div class="card-header"><span class="section-icon">🌍</span>글로벌 트랜드</div>
-        <div class="card-body p-2"><table><tbody>{google_rows}</tbody></table></div>
+        <div class="card-body p-2">
+          <table><tbody>{google_rows}</tbody></table>
+          <div class="card-source">출처: Google Trends (최근 7일, 글로벌)</div>
+        </div>
       </div>
     </div>
     <div class="col-md-6 col-xl-3">
       <div class="card">
         <div class="card-header"><span class="section-icon">💬</span>SNS 화제 키워드</div>
-        <div class="card-body">{sns_tags if sns_tags else no_data}</div>
+        <div class="card-body">
+          {sns_tags if sns_tags else no_data}
+          <div class="card-source">출처: 네이버 트랜드 데이터</div>
+        </div>
       </div>
     </div>
     <div class="col-md-6 col-xl-3">
       <div class="card">
         <div class="card-header"><span class="section-icon">📰</span>국내 뉴스</div>
-        <div class="card-body p-2">{news_items if news_items else no_data}</div>
+        <div class="card-body p-2">
+          {news_items if news_items else no_data}
+          <div class="card-source">출처: 연합뉴스·헬스조선·식품음료신문·히트뉴스 RSS · 네이버 뉴스 API</div>
+        </div>
       </div>
     </div>
   </div>
@@ -135,7 +161,10 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
           <span class="section-icon">🔬</span>연구·임상 동향
           <span class="section-label label-research">Research</span>
         </div>
-        <div class="card-body p-2">{research_items if research_items else no_data}</div>
+        <div class="card-body p-2">
+          {research_items if research_items else no_data}
+          <div class="card-source">출처: 네이버 뉴스 API (연구·임상 키워드 검색)</div>
+        </div>
       </div>
     </div>
     <div class="col-md-4">
@@ -144,7 +173,10 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
           <span class="section-icon">🏛</span>식약처·규제 동향
           <span class="section-label label-regulatory">Regulatory</span>
         </div>
-        <div class="card-body p-2">{regulatory_items if regulatory_items else no_data}</div>
+        <div class="card-body p-2">
+          {regulatory_items if regulatory_items else no_data}
+          <div class="card-source">출처: 네이버 뉴스 API (식약처·규제·고시 키워드 검색)</div>
+        </div>
       </div>
     </div>
     <div class="col-md-4">
@@ -153,13 +185,19 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
           <span class="section-icon">🌐</span>해외 업계 동향
           <span class="section-label label-overseas">Global</span>
         </div>
-        <div class="card-body p-2">{overseas_items if overseas_items else no_data}</div>
+        <div class="card-body p-2">
+          {overseas_items if overseas_items else no_data}
+          <div class="card-source">출처: ScienceDaily RSS · Nutraceuticals World RSS (자동 번역)</div>
+        </div>
       </div>
     </div>
   </div>
   <div class="card">
     <div class="card-header"><span class="section-icon">📈</span>국내 Top 7 키워드 검색량 비교</div>
-    <div class="card-body"><canvas id="trendChart" height="80"></canvas></div>
+    <div class="card-body">
+      <canvas id="trendChart" height="80"></canvas>
+      <div class="card-source">출처: 네이버 데이터랩 검색 트랜드 API (최근 7일 평균)</div>
+    </div>
   </div>
 </div>
 <script>

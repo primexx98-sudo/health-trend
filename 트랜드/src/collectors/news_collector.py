@@ -14,19 +14,29 @@ logger = logging.getLogger(__name__)
 HEALTH_KEYWORDS = [
     # 제품 카테고리
     "건강기능식품", "영양제", "보충제", "기능성식품", "서플리먼트",
-    # 성분명
+    "다이어트보조제", "스포츠영양제", "기능성건강식품",
+    # 성분명 (기존)
     "비타민", "유산균", "오메가3", "콜라겐", "홍삼", "마그네슘",
-    "프로바이오틱스", "글루타치온", "코엔자임", "코엔자임", "코엔자임Q10", "루테인",
+    "프로바이오틱스", "글루타치온", "코엔자임Q10", "루테인",
     "아연", "칼슘", "철분", "크레아틴", "밀크시슬", "엽산",
     "비오틴", "NMN", "NAD", "레스베라트롤", "커큐민",
     "베타글루칸", "아스타잔틴",
-    # 효능/목적
-    "면역", "면역", "면역력", "항산화", "장건강", "피로회복",
-    "혈당 조절", "콜레스테롤", "체지방", "수면 개선",
-    # 규제/인정 체계 (필터용)
+    # 성분명 (추가)
+    "쏘팔메토", "크릴오일", "스피루리나", "클로렐라", "강황",
+    "포스파티딜세린", "글루코사민", "콘드로이틴", "히알루론산", "보스웰리아",
+    "인삼", "흑삼", "산양삼", "홍경천", "바나바", "여주추출물",
+    "HMB", "L-카르니틴", "아르기닌", "퀘르세틴", "베르베린",
+    "GABA", "테아닌", "멜라토닌",
+    # 효능/목적 (기존)
+    "면역력", "항산화", "장건강", "피로회복",
+    "콜레스테롤", "체지방", "수면 개선",
+    # 효능/목적 (추가)
+    "혈당", "혈압", "뼈건강", "관절건강", "눈건강", "기억력", "인지기능",
+    "갱년기", "체중관리",
+    # 규제/인정 체계
     "개별인정", "개별인정형", "고시형", "기능성 원료", "개정고시", "GMP",
     # 기관
-    "식품의약품안전처", "기능성", "기능성",
+    "식품의약품안전처",
 ]
 
 # 명백히 건강기능식품과 무관한 주제 — 병원뉴스 타겟
@@ -60,15 +70,17 @@ REGULATORY_KEYWORDS = [
 ]
 
 # ─── 국내 건강 뉴스 RSS (직접 추가/수정 가능) ────────────────────
-# trusted=True 피드는 건강 전문 매체로 키워드 필터 완화 적용
+# trusted=True 피드는 건기식 전문 매체 — HEALTH+RESEARCH+REGULATORY 키워드 통합 필터 적용
 KOREAN_RSS_FEEDS = [
-    {"name": "연합뉴스 건강", "url": "https://www.yna.co.kr/rss/health.xml", "trusted": True},
-    {"name": "헬스조선", "url": "https://health.chosun.com/site/data/rss/rss.xml", "trusted": True},
-    {"name": "팜뉴스",         "url": "http://www.pharmnews.com/rss/allArticle.xml",        "trusted": False},
-    {"name": "메디소비자뉴스", "url": "https://www.medisobizanews.com/rss/allArticle.xml", "trusted": False},
-    {"name": "식품음료신문", "url": "http://www.thinkfood.co.kr/rss/allArticle.xml", "trusted": True},
-    {"name": "식품저널", "url": "https://www.foodnews.co.kr/rss/allArticle.xml", "trusted": False},
-    {"name": "뉴스1 생활", "url": "https://www.news1.kr/rss/life.xml", "trusted": False},
+    {"name": "연합뉴스 건강",   "url": "https://www.yna.co.kr/rss/health.xml",               "trusted": True},
+    {"name": "헬스조선",        "url": "https://health.chosun.com/site/data/rss/rss.xml",    "trusted": True},
+    {"name": "식품음료신문",    "url": "http://www.thinkfood.co.kr/rss/allArticle.xml",       "trusted": True},
+    {"name": "히트뉴스",        "url": "http://www.hitnews.co.kr/rss/allArticle.xml",         "trusted": True},
+    {"name": "팜뉴스",          "url": "http://www.pharmnews.com/rss/allArticle.xml",         "trusted": False},
+    {"name": "메디소비자뉴스",  "url": "https://www.medisobizanews.com/rss/allArticle.xml",   "trusted": False},
+    {"name": "식품저널",        "url": "https://www.foodnews.co.kr/rss/allArticle.xml",       "trusted": False},
+    {"name": "뉴스1 생활",      "url": "https://www.news1.kr/rss/life.xml",                   "trusted": False},
+    {"name": "데일리팜",        "url": "http://www.dailypharm.com/rss/Users/dp.xml",          "trusted": False},
 ]
 # ──────────────────────────────────────────────────────────────────
 
@@ -113,8 +125,9 @@ def is_relevant(title, desc="", trusted_source=False):
     if any(ex in combined for ex in EXCLUDE_KEYWORDS):
         return False
     if trusted_source:
-        # 건강 전문 매체도 건강기능식품 키워드 최소 1개 요구 (병원뉴스 차단)
-        return any(kw in combined for kw in HEALTH_KEYWORDS)
+        # 건기식 전문 매체는 성분·규제·연구 키워드 모두 허용 (병원뉴스는 EXCLUDE로 차단)
+        broad = HEALTH_KEYWORDS + RESEARCH_KEYWORDS + REGULATORY_KEYWORDS
+        return any(kw in combined for kw in broad)
     return any(kw in title for kw in HEALTH_KEYWORDS) or \
            any(kw in desc for kw in HEALTH_KEYWORDS)
 
@@ -222,6 +235,7 @@ def _collect_from_queries(queries, days=14):
                 "pubDate": pub_date,
                 "description": desc,
                 "category": categorize(title, desc),
+                "source": "네이버뉴스",
             })
     return results
 
