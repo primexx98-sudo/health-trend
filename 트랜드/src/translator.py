@@ -27,6 +27,10 @@ def _save_usage(usage):
         json.dump(usage, f, ensure_ascii=False)
 
 
+def _is_korean(text):
+    return any('가' <= c <= '힣' for c in (text or ''))
+
+
 def translate_text(text):
     if not text:
         return None
@@ -34,21 +38,31 @@ def translate_text(text):
     if usage["chars_used"] + len(text) > MONTHLY_LIMIT:
         logger.warning(f"번역 월 한도 초과 ({usage['chars_used']:,}/{MONTHLY_LIMIT:,}자) — 영문 표시")
         return None
-    try:
-        from deep_translator import GoogleTranslator
-        translated = GoogleTranslator(source="en", target="ko").translate(text)
-        usage["chars_used"] += len(text)
-        _save_usage(usage)
-        return translated
-    except Exception as e:
-        logger.error(f"번역 실패: {e}")
-        return None
+    import translators as ts
+    for engine in ("bing", "google"):
+        try:
+            result = ts.translate_text(text, from_language="en", to_language="ko", translator=engine)
+            if _is_korean(result):
+                usage["chars_used"] += len(text)
+                _save_usage(usage)
+                logger.debug(f"번역 성공 [{engine}]: {text[:30]}...")
+                return result
+            logger.warning(f"[{engine}] 한글 없는 번역 결과 — 다음 엔진 시도")
+        except Exception as e:
+            logger.warning(f"[{engine}] 번역 실패: {e}")
+    return None
 
 
 def translate_overseas_items(items):
     usage = _load_usage()
     logger.info(f"번역 잔여 한도: {MONTHLY_LIMIT - usage['chars_used']:,}자")
+    success = 0
     for item in items:
         translated = translate_text(item["title"])
-        item["title_ko"] = translated if translated else item["title"]
+        if translated:
+            item["title_ko"] = translated
+            success += 1
+        else:
+            item["title_ko"] = item["title"]
+    logger.info(f"번역 완료: {success}/{len(items)}건")
     return items
