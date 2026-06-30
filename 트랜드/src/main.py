@@ -22,6 +22,36 @@ def setup_logging():
         handlers=[logging.FileHandler(log_file, encoding="utf-8"), logging.StreamHandler()]
     )
 
+_LEGACY_NAV = (
+    '<select id="date-select" class="date-select" '
+    'style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);'
+    'border-radius:6px;padding:4px 8px;font-size:0.85rem;cursor:pointer;margin-top:6px;display:block"></select>'
+    '<script>(function(){'
+    'var sel=document.getElementById("date-select");if(!sel)return;'
+    'sel.onchange=function(){location.href=this.value;};'
+    'fetch("./history.json").then(function(r){return r.json();})'
+    '.then(function(dates){'
+    'var cur=(location.pathname.match(/dashboard_(\\d{8})\\.html/)||[])[1];'
+    'dates.forEach(function(d,i){'
+    'var opt=document.createElement("option");'
+    'var label=d.slice(0,4)+"-"+d.slice(4,6)+"-"+d.slice(6,8);'
+    'opt.value=i===0?"./index.html":"./dashboard_"+d+".html";'
+    'opt.text=i===0?label+" (오늘)":label;'
+    'if(cur===d||(!cur&&i===0))opt.selected=true;'
+    'sel.appendChild(opt);});}).catch(function(){});})();</script>'
+)
+
+def patch_legacy_dashboards(docs_dir):
+    for fpath in glob.glob(os.path.join(docs_dir, "dashboard_????????.html")):
+        with open(fpath, "r", encoding="utf-8") as f:
+            html = f.read()
+        if "date-select" in html:
+            continue
+        patched = html.replace("</body>", _LEGACY_NAV + "</body>", 1)
+        if patched != html:
+            with open(fpath, "w", encoding="utf-8") as f:
+                f.write(patched)
+
 def cleanup_old_dashboards(output_dir, keep_days=30):
     cutoff = datetime.now() - timedelta(days=keep_days)
     removed = 0
@@ -58,17 +88,20 @@ def main():
     overseas_data = get_overseas_news()
 
     print("대시보드 생성 중...")
-    # 커밋된 루트 docs/ 에서 기존 백업 파일 스캔 (트랜드/docs/는 미커밋)
     _repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     _committed_docs = os.path.join(_repo_root, "docs")
-    available_dates = sorted(
-        [
-            (os.path.basename(f)[len("dashboard_"):-len(".html")],)
-            for f in glob.glob(os.path.join(_committed_docs, "dashboard_????????.html"))
-        ],
+
+    # history.json: 커밋된 docs/ 백업 파일 + 오늘 날짜
+    existing = sorted(
+        [os.path.basename(f)[len("dashboard_"):-len(".html")]
+         for f in glob.glob(os.path.join(_committed_docs, "dashboard_????????.html"))],
         reverse=True,
     )
-    html, date_str = generate_html(naver_data, google_data, sns_data, news_data, rising_data, overseas_data, available_dates)
+    html, date_str = generate_html(naver_data, google_data, sns_data, news_data, rising_data, overseas_data)
+
+    all_dates = ([date_str] + [d for d in existing if d != date_str])[:30]
+
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     # 날짜별 백업 (최근 30일 보관)
     archive_path = os.path.join(OUTPUT_DIR, f"dashboard_{date_str}.html")
@@ -79,6 +112,14 @@ def main():
     index_path = os.path.join(OUTPUT_DIR, "index.html")
     with open(index_path, "w", encoding="utf-8") as f:
         f.write(html)
+
+    # history.json — 모든 HTML 파일의 JS 드롭다운이 참조
+    import json as _json
+    with open(os.path.join(OUTPUT_DIR, "history.json"), "w", encoding="utf-8") as f:
+        _json.dump(all_dates, f, ensure_ascii=False)
+
+    # 구형 백업 파일에 네비 스크립트 삽입 (커밋된 docs/ 직접 패치)
+    patch_legacy_dashboards(_committed_docs)
 
     cleanup_old_dashboards(OUTPUT_DIR)
 
