@@ -58,9 +58,16 @@ def main():
     overseas_data = get_overseas_news()
 
     print("대시보드 생성 중...")
-    html, date_str = generate_html(naver_data, google_data, sns_data, news_data, rising_data, overseas_data)
-
     os.makedirs(OUTPUT_DIR, exist_ok=True)
+    available_dates = sorted(
+        [
+            (os.path.basename(f)[len("dashboard_"):-len(".html")],)
+            for f in glob.glob(os.path.join(OUTPUT_DIR, "dashboard_????????.html"))
+            if len(os.path.basename(f)) == len("dashboard_YYYYMMDD.html")
+        ],
+        reverse=True,
+    )
+    html, date_str = generate_html(naver_data, google_data, sns_data, news_data, rising_data, overseas_data, available_dates)
 
     # 날짜별 백업 (최근 30일 보관)
     archive_path = os.path.join(OUTPUT_DIR, f"dashboard_{date_str}.html")
