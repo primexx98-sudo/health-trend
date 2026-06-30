@@ -1,6 +1,161 @@
 <!DOCTYPE html>
-<html><head><meta charset="UTF-8">
-<meta http-equiv="refresh" content="0; url=dashboard_20260630.html">
-<title>건강기능식품 트랜드</title></head>
-<body><p>대시보드로 이동 중... <a href="dashboard_20260630.html">클릭</a></p></body>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>건강기능식품 트랜드 - 2026년 06월 30일 (Tue)</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  body { background: #f0f4f8; font-family: 'Malgun Gothic', sans-serif; }
+  .header { background: linear-gradient(135deg, #2d6a4f, #52b788); color: white; padding: 20px 30px; border-radius: 0 0 16px 16px; }
+  .header h1 { font-size: 1.6rem; margin: 0; }
+  .header .date { opacity: 0.85; font-size: 0.95rem; }
+  .card { border: none; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); margin-bottom: 20px; }
+  .card-header { background: #fff; border-bottom: 2px solid #e9ecef; border-radius: 12px 12px 0 0 !important; font-weight: 700; font-size: 1rem; padding: 14px 18px; }
+  .card-header.research { border-bottom-color: #d0ebff; }
+  .card-header.regulatory { border-bottom-color: #fff3bf; }
+  .card-header.overseas { border-bottom-color: #ffe3e3; }
+  .rank { width: 32px; color: #adb5bd; font-weight: 700; }
+  .bar { background: #52b788; height: 18px; border-radius: 4px; min-width: 4px; color: white; font-size: 11px; padding: 1px 4px; }
+  .bar-green { background: #74c69d; }
+  table { width: 100%; }
+  td { padding: 6px 8px; vertical-align: middle; font-size: 0.9rem; }
+  tr:hover { background: #f8f9fa; }
+  .tag { display: inline-block; background: #d8f3dc; color: #1b4332; border-radius: 20px; padding: 4px 12px; margin: 4px; cursor: default; }
+  .rising-tag { display: inline-block; background: #fff3cd; color: #856404; border-radius: 8px; padding: 6px 14px; margin: 4px; font-weight: 600; font-size: 0.9rem; }
+  .news-item { padding: 7px 0; border-bottom: 1px solid #f1f3f5; }
+  .news-item:last-child { border-bottom: none; }
+  .news-item a { color: #2d6a4f; text-decoration: none; font-size: 0.87rem; line-height: 1.4; }
+  .news-item a:hover { text-decoration: underline; }
+  .news-date { display: block; color: #adb5bd; font-size: 0.76rem; margin-top: 2px; }
+  .news-source { color: #868e96; }
+  .section-icon { margin-right: 6px; }
+  .section-label { font-size: 0.7rem; font-weight: 600; padding: 2px 7px; border-radius: 10px; margin-left: 6px; vertical-align: middle; }
+  .label-research { background: #d0ebff; color: #1864ab; }
+  .label-regulatory { background: #fff3bf; color: #7d6608; }
+  .label-overseas { background: #ffe3e3; color: #c92a2a; }
+  .card-source { font-size: 0.7rem; color: #ced4da; border-top: 1px solid #f1f3f5; margin-top: 8px; padding-top: 5px; }
+</style>
+</head>
+<body>
+<div class="header mb-4">
+  <h1>🌿 건강기능식품 트랜드 대시보드</h1>
+  <div class="date">2026년 06월 30일 (Tue) &nbsp;|&nbsp; 매일 오전 9시 자동 업데이트</div>
+</div>
+<div class="container-fluid px-4">
+  <div class="card mb-3">
+    <div class="card-header">⚡ 오늘의 급상승 키워드</div>
+    <div class="card-body py-2">
+      <span class="text-muted small">데이터 수집 중...</span>
+      <div class="card-source">출처: Google Trends 급상승 검색어 (국내 KR, 최근 1일) · 건기식 무관 키워드 자동 제외</div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6 col-xl-3">
+      <div class="card">
+        <div class="card-header"><span class="section-icon">📊</span>국내 인기 순위</div>
+        <div class="card-body p-2">
+          <table><tbody><tr><td class="rank">🥇</td><td style="font-weight:700">코엔자임Q10</td><td><div class="bar" style="width:100%;background:#1b4332">100</div></td></tr><tr><td class="rank">🥈</td><td style="font-weight:700">오메가3</td><td><div class="bar" style="width:99.08382%;background:#2d6a4f">99</div></td></tr><tr><td class="rank">🥉</td><td style="font-weight:700">글루타치온</td><td><div class="bar" style="width:70.09803%;background:#40916c">70</div></td></tr><tr><td class="rank">4</td><td style="font-weight:400">마그네슘</td><td><div class="bar" style="width:60.66691%;background:#52b788">61</div></td></tr><tr><td class="rank">5</td><td style="font-weight:400">크레아틴</td><td><div class="bar" style="width:56.83551%;background:#74c69d">57</div></td></tr><tr><td class="rank">6</td><td style="font-weight:400">유산균</td><td><div class="bar" style="width:51.6204%;background:#74c69d">52</div></td></tr><tr><td class="rank">7</td><td style="font-weight:400">루테인</td><td><div class="bar" style="width:39.54268%;background:#74c69d">40</div></td></tr><tr><td class="rank">8</td><td style="font-weight:400">비오틴</td><td><div class="bar" style="width:33.1427%;background:#74c69d">33</div></td></tr><tr><td class="rank">9</td><td style="font-weight:400">단백질보충제</td><td><div class="bar" style="width:32.92483%;background:#74c69d">33</div></td></tr><tr><td class="rank">10</td><td style="font-weight:400">엽산</td><td><div class="bar" style="width:31.15468%;background:#74c69d">31</div></td></tr><tr><td class="rank">11</td><td style="font-weight:400">콜라겐</td><td><div class="bar" style="width:25.70764%;background:#74c69d">26</div></td></tr><tr><td class="rank">12</td><td style="font-weight:400">비타민</td><td><div class="bar" style="width:19.81402%;background:#74c69d">20</div></td></tr><tr><td class="rank">13</td><td style="font-weight:400">프로바이오틱스</td><td><div class="bar" style="width:15.89904%;background:#74c69d">16</div></td></tr><tr><td class="rank">14</td><td style="font-weight:400">아연</td><td><div class="bar" style="width:14.20412%;background:#74c69d">14</div></td></tr><tr><td class="rank">15</td><td style="font-weight:400">밀크시슬</td><td><div class="bar" style="width:12.07317%;background:#74c69d">12</div></td></tr></tbody></table>
+          <div class="card-source">산출기준: 네이버 데이터랩 검색량 지수 (최근 7일, 건강기능식품 주요 키워드 비교)</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+      <div class="card">
+        <div class="card-header"><span class="section-icon">🌍</span>글로벌 트랜드</div>
+        <div class="card-body p-2">
+          <table><tbody></tbody></table>
+          <div class="card-source">출처: Google Trends (최근 7일, 글로벌)</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+      <div class="card">
+        <div class="card-header"><span class="section-icon">💬</span>SNS 화제 키워드</div>
+        <div class="card-body">
+          <span class="tag" style="font-size:22px">#비타민 <small>10</small></span><span class="tag" style="font-size:22px">#유산균 <small>10</small></span><span class="tag" style="font-size:22px">#오메가3 <small>10</small></span><span class="tag" style="font-size:22px">#콜라겐 <small>10</small></span><span class="tag" style="font-size:22px">#홍삼 <small>10</small></span><span class="tag" style="font-size:22px">#프로바이오틱스 <small>10</small></span><span class="tag" style="font-size:22px">#마그네슘 <small>10</small></span><span class="tag" style="font-size:22px">#아연 <small>10</small></span><span class="tag" style="font-size:22px">#철분 <small>10</small></span><span class="tag" style="font-size:22px">#칼슘 <small>10</small></span><span class="tag" style="font-size:22px">#루테인 <small>10</small></span><span class="tag" style="font-size:22px">#밀크시슬 <small>10</small></span><span class="tag" style="font-size:22px">#가르시니아 <small>10</small></span><span class="tag" style="font-size:22px">#NAD <small>10</small></span><span class="tag" style="font-size:22px">#코엔자임Q10 <small>10</small></span><span class="tag" style="font-size:22px">#글루타치온 <small>10</small></span><span class="tag" style="font-size:22px">#비오틴 <small>10</small></span><span class="tag" style="font-size:22px">#엽산 <small>10</small></span><span class="tag" style="font-size:22px">#크레아틴 <small>10</small></span><span class="tag" style="font-size:22px">#단백질보충제 <small>10</small></span>
+          <div class="card-source">출처: 네이버 트랜드 데이터</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+      <div class="card">
+        <div class="card-header"><span class="section-icon">📰</span>국내 뉴스</div>
+        <div class="card-body p-2">
+          <div class="news-item"><a href="https://www.yna.co.kr/view/AKR20260630052000004" target="_blank">서울시, 손목닥터9988로 혈당 관리…당뇨 예방모델 선보인다</a><span class="news-date">연합뉴스 건강 · Tue, 30 Jun 2026</span></div><div class="news-item"><a href="https://health.chosun.com/site/data/html_dir/2026/06/30/2026063001859.html" target="_blank">“혈관 건강 지키는 채소”… 익숙한 듯 생소한 ‘양대파’를 아시나요</a><span class="news-date">헬스조선 · </span></div><div class="news-item"><a href="https://health.chosun.com/site/data/html_dir/2026/06/30/2026063001433.html" target="_blank">‘저칼로리 디저트’ 젤로, 부담 없다고 막 먹다간 복부팽만·변비 우려</a><span class="news-date">헬스조선 · </span></div><div class="news-item"><a href="https://health.chosun.com/site/data/html_dir/2026/06/30/2026063001453.html" target="_blank">“좋다고 막 썼다가 독 된다”… 올리브오일 넣으면 안 되는 3가지 음식</a><span class="news-date">헬스조선 · </span></div><div class="news-item"><a href="https://health.chosun.com/site/data/html_dir/2026/06/30/2026063001291.html" target="_blank">15kg 감량 한지혜, “체지방 태운다”며 추천한 운동은?</a><span class="news-date">헬스조선 · </span></div><div class="news-item"><a href="https://www.thinkfood.co.kr/news/articleView.html?idxno=200668" target="_blank">[06/30 오늘의 새상품] 크라운제과 ‘체다치즈’, 샘표 ‘메밀 쌀소면’, 이디야커피 ‘디 오리지널 콤부차 프로바이오틱스 레몬라임’ 등 2종</a><span class="news-date">식품음료신문 · 2026-06-30 09:46</span></div><div class="news-item"><a href="http://www.medisobizanews.com/news/articleView.html?idxno=139796" target="_blank">동국제약, 이중제형 건강음료 ‘마이팝’ 3종 다이소 출시</a><span class="news-date">메디소비자뉴스 · 2026-06-30 10:07</span></div><div class="news-item"><a href="http://www.medisobizanews.com/news/articleView.html?idxno=139788" target="_blank">뉴메코, 보툴리눔 톡신 ‘뉴럭스’ 아제르바이잔 허가</a><span class="news-date">메디소비자뉴스 · 2026-06-30 09:23</span></div>
+          <div class="card-source">출처: 연합뉴스·헬스조선·식품음료신문·히트뉴스 RSS · 네이버 뉴스 API</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header research">
+          <span class="section-icon">🔬</span>연구·임상 동향
+          <span class="section-label label-research">Research</span>
+        </div>
+        <div class="card-body p-2">
+          <div class="news-item"><a href="https://www.yna.co.kr/view/AKR20260630121700052" target="_blank">🔬 낙동강 조류경보에도 경남 수돗물 조류독소·냄새물질 미검출</a><span class="news-date">연합뉴스 건강 · Tue, 30 Jun 2026</span></div><div class="news-item"><a href="https://health.chosun.com/site/data/html_dir/2026/06/30/2026063001430.html" target="_blank">🔬 “고기 잘 먹었는데 근육 점점 빠져”… 매일 마신 음료가 주범이었다</a><span class="news-date">헬스조선 · </span></div><div class="news-item"><a href="https://health.chosun.com/site/data/html_dir/2026/06/30/2026063001237.html" target="_blank">🔬 통곡물 많이 먹는 여성, 유방암 위험 22% 뚝</a><span class="news-date">헬스조선 · </span></div><div class="news-item"><a href="https://health.chosun.com/site/data/html_dir/2026/06/30/2026063001374.html" target="_blank">🔬 같은 나이인데 장기는 달랐다… 빨리 늙은 장기, 질병 위험 높아</a><span class="news-date">헬스조선 · </span></div><div class="news-item"><a href="https://health.chosun.com/site/data/html_dir/2026/06/30/2026063001306.html" target="_blank">🔬 국내 콩팥병 환자, 미국보다 말기신부전으로 많이 이어진다</a><span class="news-date">헬스조선 · </span></div><div class="news-item"><a href="https://www.thinkfood.co.kr/news/articleView.html?idxno=200674" target="_blank">🔬 대상웰라이프, 중국 영양·건강 시장 공략 나선다</a><span class="news-date">식품음료신문 · 2026-06-30 10:58</span></div><div class="news-item"><a href="https://www.thinkfood.co.kr/news/articleView.html?idxno=200635" target="_blank">🔬 [인터뷰] 공격적 마케팅 펼치는 김병석 국립식량과학원장</a><span class="news-date">식품음료신문 · 2026-06-29 07:51</span></div><div class="news-item"><a href="https://www.thinkfood.co.kr/news/articleView.html?idxno=200652" target="_blank">🔬 농기평, R&D 앞세워 유산균 본고장 유럽 뚫었다</a><span class="news-date">식품음료신문 · 2026-06-26 10:25</span></div>
+          <div class="card-source">출처: 네이버 뉴스 API (연구·임상 키워드 검색)</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header regulatory">
+          <span class="section-icon">🏛</span>식약처·규제 동향
+          <span class="section-label label-regulatory">Regulatory</span>
+        </div>
+        <div class="card-body p-2">
+          <div class="news-item"><a href="https://www.thinkfood.co.kr/news/articleView.html?idxno=200657" target="_blank">🏛 수면 질 건강 감태추출물, ‘스트레스 긴장 완화’에도 효과 있다</a><span class="news-date">식품음료신문 · 2026-06-29 09:42</span></div>
+          <div class="card-source">출처: 네이버 뉴스 API (식약처·규제·고시 키워드 검색)</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header overseas">
+          <span class="section-icon">🌐</span>해외 업계 동향
+          <span class="section-label label-overseas">Global</span>
+        </div>
+        <div class="card-body p-2">
+          <div class="news-item"><a href="https://www.nutraceuticalsworld.com/building-stronger-supply-chains-through-global-reach-and-personal-service/" target="_blank">글로벌 범위와 개인 맞춤 서비스를 통한 더 강력한 공급망 구축</a><span class="news-date news-source">[Nutraceuticals World] Mon, 29 Jun 2026</span></div><div class="news-item"><a href="https://www.nutraceuticalsworld.com/what-the-science-says-about-full-spectrum-mushroom-ingredients/" target="_blank">전체 스펙트럼 버섯 성분에 대한 과학적 견해</a><span class="news-date news-source">[Nutraceuticals World] Thu, 25 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260624025511.htm" target="_blank">골감소증은 수백만 명의 사람들의 뼈를 조용히 약화시키고 있습니다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Thu, 25 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260623083116.htm" target="_blank">이 흔한 비타민 결핍은 정상적인 노화와 유사하게 나타날 수 있습니다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Thu, 25 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260623083104.htm" target="_blank">연구는 비타민 D와 햇빛에 대한 일반적인 믿음에 도전한다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Wed, 24 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260622014300.htm" target="_blank">수백만 명이 뇌 건강을 위해 오메가-3 생선 기름을 섭취하지만, 새로운 연구에서는 효과가 없다는 결과를 발견했다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Mon, 29 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260621060318.htm" target="_blank">한 가지 일반적인 지방은 제2형 당뇨병을 촉진할 수 있는 반면, 다른 지방은 이를 극복하는 데 도움을 줄 수 있다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Sun, 21 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260614012011.htm" target="_blank">과학자들은 당신 음식에 들어 있는 대부분의 것들이 여전히 미스터리라고 말합니다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Wed, 17 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260623083106.htm" target="_blank">연구자들은 과당이 포도당처럼 배고픔을 채우지 못하는 이유를 발견했다</a><span class="news-date news-source">[ScienceDaily — Nutrition] Fri, 26 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260622091429.htm" target="_blank">과학자들은 대부분의 사람들이 현재 지침이 제안하는 것보다 더 많은 단백질이 필요하다고 말합니다</a><span class="news-date news-source">[ScienceDaily — Nutrition] Mon, 22 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260621060313.htm" target="_blank">당신의 콤부차 속 차는 맛 이상의 것을 바꿉니다</a><span class="news-date news-source">[ScienceDaily — Nutrition] Tue, 23 Jun 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/06/260622014313.htm" target="_blank">일반적인 비타민이 가장 치명적인 뇌암 중 하나를 싸우는 데 도움을 줄 수 있다</a><span class="news-date news-source">[ScienceDaily — Vitamins] Mon, 22 Jun 2026</span></div>
+          <div class="card-source">출처: ScienceDaily RSS · Nutraceuticals World RSS (자동 번역)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="section-icon">📈</span>국내 Top 7 키워드 검색량 비교</div>
+    <div class="card-body">
+      <canvas id="trendChart" height="80"></canvas>
+      <div class="card-source">출처: 네이버 데이터랩 검색 트랜드 API (최근 7일 평균)</div>
+    </div>
+  </div>
+</div>
+<script>
+const ctx = document.getElementById('trendChart').getContext('2d');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: ["\ucf54\uc5d4\uc790\uc784Q10", "\uc624\uba54\uac003", "\uae00\ub8e8\ud0c0\uce58\uc628", "\ub9c8\uadf8\ub124\uc298", "\ud06c\ub808\uc544\ud2f4", "\uc720\uc0b0\uade0", "\ub8e8\ud14c\uc778"],
+    datasets: [{
+      label: '검색 지수',
+      data: [100, 99.08382, 70.09803, 60.66691, 56.83551, 51.6204, 39.54268],
+      backgroundColor: 'rgba(82, 183, 136, 0.7)',
+      borderColor: '#2d6a4f',
+      borderWidth: 1,
+      borderRadius: 6
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true } }
+  }
+});
+</script>
+</body>
 </html>
