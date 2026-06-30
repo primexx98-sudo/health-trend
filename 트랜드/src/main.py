@@ -1,7 +1,8 @@
+import glob
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import OUTPUT_DIR, LOG_DIR, NAVER_CLIENT_ID
@@ -20,6 +21,20 @@ def setup_logging():
         format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
         handlers=[logging.FileHandler(log_file, encoding="utf-8"), logging.StreamHandler()]
     )
+
+def cleanup_old_dashboards(output_dir, keep_days=30):
+    cutoff = datetime.now() - timedelta(days=keep_days)
+    removed = 0
+    for fpath in glob.glob(os.path.join(output_dir, "dashboard_????????.html")):
+        try:
+            date_str = os.path.basename(fpath)[len("dashboard_"):-len(".html")]
+            if datetime.strptime(date_str, "%Y%m%d") < cutoff:
+                os.remove(fpath)
+                removed += 1
+        except Exception:
+            pass
+    if removed:
+        logging.getLogger("main").info(f"오래된 대시보드 {removed}개 삭제")
 
 def main():
     setup_logging()
@@ -47,22 +62,20 @@ def main():
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    output_path = os.path.join(OUTPUT_DIR, f"dashboard_{date_str}.html")
-    with open(output_path, "w", encoding="utf-8") as f:
+    # 날짜별 백업 (최근 30일 보관)
+    archive_path = os.path.join(OUTPUT_DIR, f"dashboard_{date_str}.html")
+    with open(archive_path, "w", encoding="utf-8") as f:
         f.write(html)
 
+    # 고정 URL — index.html에 오늘 대시보드 직접 덮어쓰기
     index_path = os.path.join(OUTPUT_DIR, "index.html")
-    redirect_html = f"""<!DOCTYPE html>
-<html><head><meta charset="UTF-8">
-<meta http-equiv="refresh" content="0; url=dashboard_{date_str}.html">
-<title>건강기능식품 트랜드</title></head>
-<body><p>대시보드로 이동 중... <a href="dashboard_{date_str}.html">클릭</a></p></body>
-</html>"""
     with open(index_path, "w", encoding="utf-8") as f:
-        f.write(redirect_html)
+        f.write(html)
 
-    logger.info(f"완료: {output_path}")
-    print(f"완료! dashboard_{date_str}.html 생성됨")
+    cleanup_old_dashboards(OUTPUT_DIR)
+
+    logger.info(f"완료: {index_path}")
+    print(f"완료! index.html 업데이트됨 (백업: dashboard_{date_str}.html)")
 
 if __name__ == "__main__":
     main()
