@@ -23,30 +23,43 @@ def setup_logging():
     )
 
 _LEGACY_NAV = (
-    '<select id="date-select" class="date-select" '
-    'style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.4);'
-    'border-radius:6px;padding:4px 8px;font-size:0.85rem;cursor:pointer;margin-top:6px;display:block"></select>'
     '<script>(function(){'
-    'var sel=document.getElementById("date-select");if(!sel)return;'
-    'sel.onchange=function(){location.href=this.value;};'
-    'fetch("./history.json").then(function(r){return r.json();})'
-    '.then(function(dates){'
-    'var cur=(location.pathname.match(/dashboard_(\\d{8})\\.html/)||[])[1];'
-    'dates.forEach(function(d,i){'
-    'var opt=document.createElement("option");'
-    'var label=d.slice(0,4)+"-"+d.slice(4,6)+"-"+d.slice(6,8);'
-    'opt.value=i===0?"./index.html":"./dashboard_"+d+".html";'
-    'opt.text=i===0?label+" (오늘)":label;'
-    'if(cur===d||(!cur&&i===0))opt.selected=true;'
-    'sel.appendChild(opt);});}).catch(function(){});})();</script>'
+    'if(document.getElementById("date-select"))return;'
+    'var s=document.createElement("select");'
+    's.id="date-select";'
+    's.style.cssText="position:fixed;top:10px;right:15px;z-index:9999;'
+    'background:rgba(45,106,79,0.92);color:#fff;'
+    'border:1px solid rgba(255,255,255,0.4);border-radius:6px;'
+    'padding:3px 8px;font-size:0.82rem;cursor:pointer";'
+    'document.body.appendChild(s);'
+    's.onchange=function(){location.href=this.value;};'
+    'fetch("./history.json?v="+Date.now())'
+    '.then(function(r){return r.json();})'
+    '.then(function(a){'
+    'var c=(location.pathname.match(/dashboard_(\\d{8})\\.html/)||[])[1];'
+    'a.forEach(function(d,i){'
+    'var o=document.createElement("option");'
+    'var l=d.slice(0,4)+"-"+d.slice(4,6)+"-"+d.slice(6,8);'
+    'o.value=i===0?"./index.html":"./dashboard_"+d+".html";'
+    'o.text=i===0?l+" (오늘)":l;'
+    's.appendChild(o);});'
+    's.value=c?"./dashboard_"+c+".html":"./index.html";'
+    '}).catch(function(){});'
+    '})();</script>'
 )
+
+import re as _re
 
 def patch_legacy_dashboards(docs_dir):
     for fpath in glob.glob(os.path.join(docs_dir, "dashboard_????????.html")):
         with open(fpath, "r", encoding="utf-8") as f:
             html = f.read()
-        if "date-select" in html:
+        if "d-flex" in html:  # 새 템플릿 — 헤더에 select 이미 있음, 건너뜀
             continue
+        if "position:fixed" in html:  # 이미 새 패치 적용됨
+            continue
+        # 구버전 패치 제거 후 신버전 삽입
+        html = _re.sub(r'<select id="date-select"[\s\S]*?</script>', '', html, count=1)
         patched = html.replace("</body>", _LEGACY_NAV + "</body>", 1)
         if patched != html:
             with open(fpath, "w", encoding="utf-8") as f:
