@@ -2,11 +2,32 @@ from datetime import datetime
 import os
 import json
 
+_NAV_JS = """\
+<script>
+(function(){
+  var sel = document.getElementById('date-select');
+  if (!sel) return;
+  sel.onchange = function(){ location.href = this.value; };
+  fetch('./history.json')
+    .then(function(r){ return r.json(); })
+    .then(function(dates){
+      var cur = (location.pathname.match(/dashboard_(\\d{8})\\.html/) || [])[1];
+      dates.forEach(function(d, i){
+        var opt = document.createElement('option');
+        var label = d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6,8);
+        opt.value = i === 0 ? './index.html' : ('./dashboard_'+d+'.html');
+        opt.text  = i === 0 ? label+' (오늘)' : label;
+        if (cur === d || (!cur && i === 0)) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    })
+    .catch(function(){});
+})();
+</script>"""
+
 def generate_html(naver_data, google_data, sns_data, news_data, rising_data, overseas_data=None, available_dates=None):
     if overseas_data is None:
         overseas_data = []
-    if available_dates is None:
-        available_dates = []
     today = datetime.now().strftime("%Y년 %m월 %d일 (%a)")
     today_file = datetime.now().strftime("%Y%m%d")
 
@@ -65,25 +86,6 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
     chart_values = json.dumps([d["ratio"] for d in naver_data[:7]])
     no_data = '<span class="text-muted small">데이터 수집 중...</span>'
 
-    def _fmt_date(d):
-        try:
-            return datetime.strptime(d, "%Y%m%d").strftime("%Y-%m-%d")
-        except Exception:
-            return d
-
-    if available_dates:
-        opts = [f'<option value="index.html" selected>{_fmt_date(today_file)} (오늘)</option>']
-        for (d,) in available_dates:
-            if d != today_file:
-                opts.append(f'<option value="dashboard_{d}.html">{_fmt_date(d)}</option>')
-        date_nav = (
-            '<select class="date-select" onchange="location.href=this.value" title="과거 날짜 조회">'
-            + "".join(opts)
-            + "</select>"
-        )
-    else:
-        date_nav = ""
-
     html = f"""<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -130,7 +132,7 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
 <div class="header mb-4">
   <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
     <h1 class="mb-0">🌿 건강기능식품 트랜드 대시보드</h1>
-    {date_nav}
+    <select id="date-select" class="date-select" title="과거 날짜 조회"></select>
   </div>
   <div class="date mt-1">{today} &nbsp;|&nbsp; 매일 오전 9시 자동 업데이트</div>
 </div>
@@ -248,6 +250,7 @@ new Chart(ctx, {{
   }}
 }});
 </script>
+{_NAV_JS}
 </body>
 </html>"""
     return html, today_file
