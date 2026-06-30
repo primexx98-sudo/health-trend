@@ -2,9 +2,11 @@ from datetime import datetime
 import os
 import json
 
-def generate_html(naver_data, google_data, sns_data, news_data, rising_data, overseas_data=None):
+def generate_html(naver_data, google_data, sns_data, news_data, rising_data, overseas_data=None, available_dates=None):
     if overseas_data is None:
         overseas_data = []
+    if available_dates is None:
+        available_dates = []
     today = datetime.now().strftime("%Y년 %m월 %d일 (%a)")
     today_file = datetime.now().strftime("%Y%m%d")
 
@@ -63,6 +65,25 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
     chart_values = json.dumps([d["ratio"] for d in naver_data[:7]])
     no_data = '<span class="text-muted small">데이터 수집 중...</span>'
 
+    def _fmt_date(d):
+        try:
+            return datetime.strptime(d, "%Y%m%d").strftime("%Y-%m-%d")
+        except Exception:
+            return d
+
+    if available_dates:
+        opts = [f'<option value="index.html" selected>{_fmt_date(today_file)} (오늘)</option>']
+        for (d,) in available_dates:
+            if d != today_file:
+                opts.append(f'<option value="dashboard_{d}.html">{_fmt_date(d)}</option>')
+        date_nav = (
+            '<select class="date-select" onchange="location.href=this.value" title="과거 날짜 조회">'
+            + "".join(opts)
+            + "</select>"
+        )
+    else:
+        date_nav = ""
+
     html = f"""<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -101,12 +122,17 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
   .label-regulatory {{ background: #fff3bf; color: #7d6608; }}
   .label-overseas {{ background: #ffe3e3; color: #c92a2a; }}
   .card-source {{ font-size: 0.7rem; color: #ced4da; border-top: 1px solid #f1f3f5; margin-top: 8px; padding-top: 5px; }}
+  .date-select {{ background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; cursor: pointer; }}
+  .date-select option {{ background: #2d6a4f; color: white; }}
 </style>
 </head>
 <body>
 <div class="header mb-4">
-  <h1>🌿 건강기능식품 트랜드 대시보드</h1>
-  <div class="date">{today} &nbsp;|&nbsp; 매일 오전 9시 자동 업데이트</div>
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h1 class="mb-0">🌿 건강기능식품 트랜드 대시보드</h1>
+    {date_nav}
+  </div>
+  <div class="date mt-1">{today} &nbsp;|&nbsp; 매일 오전 9시 자동 업데이트</div>
 </div>
 <div class="container-fluid px-4">
   <div class="card mb-3">
