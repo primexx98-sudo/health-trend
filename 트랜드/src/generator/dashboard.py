@@ -151,12 +151,20 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
     def _ecommerce_col(key, label):
         items = ecommerce_data.get(key, [])
         rows = "".join(
-            f'<tr><td class="rank">{it["rank"]}</td>'
-            f'<td><a href="{it["url"]}" target="_blank">{it["name"]}</a></td>'
-            f'<td class="text-nowrap">{it["price"]}</td></tr>'
+            f'<div class="ecom-item">'
+            + (
+                f'<img class="ecom-thumb" src="{it["image"]}" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">'
+                if it.get("image") else '<div class="ecom-thumb"></div>'
+            )
+            + f'<div class="ecom-info">'
+            f'<div class="ecom-top"><span class="rank">{it["rank"]}</span>'
+            f'<span class="ecom-cat">{it.get("category") or ""}</span></div>'
+            f'<a class="ecom-name" href="{it["url"]}" target="_blank">{it["name"]}</a>'
+            f'<div class="ecom-price">{it["price"]}</div>'
+            f'</div></div>'
             for it in items
         )
-        body = f'<div class="table-responsive"><table><tbody>{rows}</tbody></table></div>' if rows else no_data
+        body = rows if rows else no_data
         return f'<div class="col-md-4"><div class="fw-bold mb-1">{label}</div>{body}</div>'
 
     ecommerce_cols = "".join(_ecommerce_col(key, label) for key, label in _ecommerce_platforms)
@@ -207,6 +215,15 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
   .card-source {{ font-size: 0.7rem; color: #ced4da; border-top: 1px solid #f1f3f5; margin-top: 8px; padding-top: 5px; }}
   .date-select {{ background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; cursor: pointer; }}
   .date-select option {{ background: #2d6a4f; color: white; }}
+  .ecom-item {{ display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid #f1f3f5; }}
+  .ecom-item:last-child {{ border-bottom: none; }}
+  .ecom-thumb {{ width: 48px; height: 48px; object-fit: cover; border-radius: 6px; flex-shrink: 0; background: #f1f3f5; }}
+  .ecom-info {{ min-width: 0; flex: 1; }}
+  .ecom-top {{ display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }}
+  .ecom-cat {{ font-size: 0.68rem; background: #d8f3dc; color: #1b4332; border-radius: 8px; padding: 1px 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }}
+  .ecom-name {{ display: block; color: #212529; text-decoration: none; font-size: 0.85rem; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }}
+  .ecom-name:hover {{ color: #2d6a4f; }}
+  .ecom-price {{ font-size: 0.8rem; color: #495057; font-weight: 700; margin-top: 2px; }}
   @media (max-width: 576px) {{
     .header {{ padding: 14px 16px; }}
     .header h1 {{ font-size: 1.25rem; }}
@@ -214,6 +231,8 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
     .rising-tag {{ font-size: 0.78rem; padding: 4px 10px; }}
     .card-header {{ font-size: 0.9rem; padding: 10px 14px; }}
     td {{ font-size: 0.82rem; padding: 5px 6px; }}
+    .ecom-thumb {{ width: 40px; height: 40px; }}
+    .ecom-name {{ font-size: 0.8rem; }}
   }}
 </style>
 </head>

@@ -41,7 +41,15 @@ def get_ecommerce_rankings():
         ws = wb[platform]
         rows = list(ws.iter_rows(min_row=2, max_row=1 + TOP_N, values_only=True))
         result[platform] = [
-            {"rank": r[1], "name": r[2], "brand": r[3], "price": r[4], "url": r[5]}
+            {
+                "rank": r[1],
+                "category": r[0],
+                "name": r[2],
+                "brand": r[3],
+                "price": r[4],
+                "url": r[5],
+                "image": r[6] if len(r) > 6 else "",
+            }
             for r in rows if r and r[1] is not None
         ]
     return result
