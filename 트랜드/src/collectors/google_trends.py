@@ -50,32 +50,6 @@ def _normalize_spacing(text):
     return result
 
 
-GLOBAL_KEYWORDS = [
-    "vitamin supplement", "probiotic", "collagen", "omega 3",
-    "magnesium", "protein powder", "NAD supplement", "ashwagandha",
-    "turmeric", "zinc supplement"
-]
-
-def get_global_trends():
-    """Google Trends - 글로벌 건강보조제 트랜드"""
-    try:
-        pytrends = TrendReq(hl="ko", tz=540, timeout=(10, 25))
-        pytrends.build_payload(GLOBAL_KEYWORDS[:5], timeframe="now 7-d", geo="")
-        interest_df = pytrends.interest_over_time()
-
-        if interest_df.empty:
-            logger.warning("Google Trends 데이터 없음")
-            return []
-
-        latest = interest_df.iloc[-1].drop("isPartial", errors="ignore")
-        results = [{"keyword": kw, "ratio": int(val)} for kw, val in latest.items()]
-        results.sort(key=lambda x: x["ratio"], reverse=True)
-        logger.info(f"Google Trends {len(results)}개 수집 완료")
-        return results
-    except Exception as e:
-        logger.error(f"Google Trends 수집 실패: {e}")
-        return []
-
 # 1차 시드에서 결과가 없을 때 시도하는 2차 시드 (건기식 무관 필터로 자주 공란이 되는 문제 완화)
 _FALLBACK_SEED = ["루테인", "콜라겐", "마그네슘", "단백질보충제", "프로바이오틱스"]
 

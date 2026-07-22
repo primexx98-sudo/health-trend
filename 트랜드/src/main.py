@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import OUTPUT_DIR, LOG_DIR, NAVER_CLIENT_ID
 from collectors.naver_trends import get_top_keywords
-from collectors.google_trends import get_global_trends, get_rising_keywords
+from collectors.google_trends import get_rising_keywords
 from collectors.sns_collector import get_sns_keywords
 from collectors.news_collector import collect_all_news
 from collectors.overseas_collector import get_overseas_news
@@ -117,23 +117,20 @@ def main():
     logger = logging.getLogger("main")
     logger.info("트랜드 수집 시작")
 
-    print("[1/6] 국내 키워드 순위 수집 중...")
+    print("[1/5] 국내 키워드 순위 수집 중...")
     naver_data = get_top_keywords() or [{"keyword": "데이터 없음", "ratio": 0}]
 
-    print("[2/6] 글로벌 트랜드 수집 중...")
-    google_data = get_global_trends()
+    print("[2/5] 급상승 키워드 수집 중...")
     rising_data = get_rising_keywords()
 
-    print("[3/6] SNS 키워드 수집 중...")
+    print("[3/5] SNS 키워드 수집 중...")
     sns_data = get_sns_keywords()
 
-    print("[4/6] 뉴스/연구 동향 수집 중...")
+    print("[4/5] 뉴스/연구/해외 동향 수집 중...")
     news_data = collect_all_news()
-
-    print("[5/6] 해외 업계 동향 수집 중...")
     overseas_data = get_overseas_news()
 
-    print("[6/6] 이커머스 판매순위 수집 중...")
+    print("[5/5] 이커머스 판매순위 수집 중...")
     ecommerce_data = get_ecommerce_rankings()
 
     print("대시보드 생성 중...")
@@ -164,7 +161,7 @@ def main():
             naver_history.append({"date": d, "data": data})
 
     html, date_str = generate_html(
-        naver_data, google_data, sns_data, news_data, rising_data, overseas_data,
+        naver_data, sns_data, news_data, rising_data, overseas_data,
         ecommerce_data=ecommerce_data, naver_prev_data=naver_prev_data, naver_history=naver_history,
     )
 

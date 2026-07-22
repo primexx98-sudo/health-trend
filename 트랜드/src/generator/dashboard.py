@@ -25,9 +25,9 @@ _NAV_JS = """\
 })();
 </script>"""
 
-def generate_html(naver_data, google_data, sns_data, news_data, rising_data, overseas_data=None, available_dates=None, ecommerce_data=None, naver_prev_data=None, naver_history=None):
+def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=None, available_dates=None, ecommerce_data=None, naver_prev_data=None, naver_history=None):
     if overseas_data is None:
-        overseas_data = {}
+        overseas_data = []
     if ecommerce_data is None:
         ecommerce_data = {}
     if naver_history is None:
@@ -66,11 +66,6 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
                 f'</tr>')
 
     naver_rows = "".join(_naver_row(i, d) for i, d in enumerate(naver_data[:15]))
-    google_rows = "".join(
-        f'<tr><td class="rank">{i+1}</td><td>{d["keyword"]}</td>'
-        f'<td><div class="bar bar-green" style="width:{min(d["ratio"],100)}%">{d["ratio"]}</div></td></tr>'
-        for i, d in enumerate(google_data[:10])
-    )
     sns_tags = "".join(
         f'<span class="tag" style="font-size:{min(14+d["count"],22)}px">{d["tag"]} <small>{d["count"]}</small></span>'
         for d in sns_data[:20]
@@ -90,22 +85,13 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
         f'<a href="{n["link"]}" target="_blank">🌐 {n.get("title_ko", n["title"])}</a>'
         f'<span class="news-date news-source">[{n["source"]}] {n["pubDate"][:16]}</span>'
         f'</div>'
-        for n in overseas_data.get("research", [])
+        for n in overseas_data
     )
     research_items = domestic_research + overseas_research
     regulatory_items = "".join(
         f'<div class="news-item"><a href="{n["link"]}" target="_blank">🏛 {n["title"]}</a>'
         f'<span class="news-date">{n.get("source", "네이버뉴스")} · {n["pubDate"][:16]}</span></div>'
         for n in news_data.get("regulatory", [])
-    )
-    # 번역된 제목(title_ko) 있으면 우선 표시, 없으면 영문 원문
-    # (ScienceDaily 등 "research" 타입은 위 research_items에 이미 합류시켰으므로 여기선 industry만)
-    overseas_items = "".join(
-        f'<div class="news-item">'
-        f'<a href="{n["link"]}" target="_blank">{n.get("title_ko", n["title"])}</a>'
-        f'<span class="news-date news-source">[{n["source"]}] {n["pubDate"][:16]}</span>'
-        f'</div>'
-        for n in overseas_data.get("industry", [])
     )
     rising_tags = "".join(
         f'<span class="rising-tag">🔥 {r["keyword"]}</span>'
@@ -196,7 +182,6 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
   .card-header {{ background: #fff; border-bottom: 2px solid #e9ecef; border-radius: 12px 12px 0 0 !important; font-weight: 700; font-size: 1rem; padding: 14px 18px; }}
   .card-header.research {{ border-bottom-color: #d0ebff; }}
   .card-header.regulatory {{ border-bottom-color: #fff3bf; }}
-  .card-header.overseas {{ border-bottom-color: #ffe3e3; }}
   .rank {{ width: 32px; color: #adb5bd; font-weight: 700; }}
   .rank-badge {{ font-size: 0.72rem; font-weight: 700; margin-left: 4px; }}
   .badge-new {{ color: #2b8a3e; }}
@@ -204,7 +189,6 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
   .badge-down {{ color: #1971c2; }}
   .badge-same {{ color: #adb5bd; }}
   .bar {{ background: #52b788; height: 18px; border-radius: 4px; min-width: 4px; color: white; font-size: 11px; padding: 1px 4px; }}
-  .bar-green {{ background: #74c69d; }}
   table {{ width: 100%; }}
   td {{ padding: 6px 8px; vertical-align: middle; font-size: 0.9rem; }}
   tr:hover {{ background: #f8f9fa; }}
@@ -220,7 +204,6 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
   .section-label {{ font-size: 0.7rem; font-weight: 600; padding: 2px 7px; border-radius: 10px; margin-left: 6px; vertical-align: middle; }}
   .label-research {{ background: #d0ebff; color: #1864ab; }}
   .label-regulatory {{ background: #fff3bf; color: #7d6608; }}
-  .label-overseas {{ background: #ffe3e3; color: #c92a2a; }}
   .card-source {{ font-size: 0.7rem; color: #ced4da; border-top: 1px solid #f1f3f5; margin-top: 8px; padding-top: 5px; }}
   .date-select {{ background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; cursor: pointer; }}
   .date-select option {{ background: #2d6a4f; color: white; }}
@@ -262,7 +245,7 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
     </div>
   </div>
   <div class="row">
-    <div class="col-md-6 col-xl-3">
+    <div class="col-md-6 col-xl-4">
       <div class="card">
         <div class="card-header"><span class="section-icon">📊</span>국내 인기 순위</div>
         <div class="card-body p-2">
@@ -271,16 +254,7 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
         </div>
       </div>
     </div>
-    <div class="col-md-6 col-xl-3">
-      <div class="card">
-        <div class="card-header"><span class="section-icon">🌍</span>글로벌 트랜드</div>
-        <div class="card-body p-2">
-          <table><tbody>{google_rows}</tbody></table>
-          <div class="card-source">출처: Google Trends (최근 7일, 글로벌)</div>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-6 col-xl-3">
+    <div class="col-md-6 col-xl-4">
       <div class="card">
         <div class="card-header"><span class="section-icon">💬</span>SNS 화제 키워드</div>
         <div class="card-body">
@@ -289,7 +263,7 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
         </div>
       </div>
     </div>
-    <div class="col-md-6 col-xl-3">
+    <div class="col-md-6 col-xl-4">
       <div class="card">
         <div class="card-header"><span class="section-icon">📰</span>국내 뉴스</div>
         <div class="card-body p-2">
@@ -309,7 +283,7 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
     </div>
   </div>
   <div class="row">
-    <div class="col-md-4">
+    <div class="col-md-6">
       <div class="card">
         <div class="card-header research">
           <span class="section-icon">🔬</span>연구·임상 동향
@@ -317,11 +291,11 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
         </div>
         <div class="card-body p-2">
           {research_items if research_items else no_data}
-          <div class="card-source">출처: 네이버 뉴스 API (연구·임상 키워드 검색)</div>
+          <div class="card-source">출처: 네이버 뉴스 API (연구·임상 키워드 검색) · ScienceDaily RSS(🌐, 자동 번역)</div>
         </div>
       </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-6">
       <div class="card">
         <div class="card-header regulatory">
           <span class="section-icon">🏛</span>식약처·규제 동향
@@ -330,18 +304,6 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
         <div class="card-body p-2">
           {regulatory_items if regulatory_items else no_data}
           <div class="card-source">출처: 네이버 뉴스 API (식약처·규제·고시 키워드 검색)</div>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="card">
-        <div class="card-header overseas">
-          <span class="section-icon">🌐</span>해외 업계 동향
-          <span class="section-label label-overseas">Global</span>
-        </div>
-        <div class="card-body p-2">
-          {overseas_items if overseas_items else no_data}
-          <div class="card-source">출처: ScienceDaily RSS · Nutraceuticals World RSS (자동 번역)</div>
         </div>
       </div>
     </div>
