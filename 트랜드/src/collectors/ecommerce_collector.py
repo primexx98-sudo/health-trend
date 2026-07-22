@@ -53,3 +53,29 @@ def get_ecommerce_rankings():
             for r in rows if r and r[1] is not None
         ]
     return result
+
+
+def attach_rank_changes(data, prev_data):
+    """전일 스냅샷과 비교해 상품별 순위 변동 배지를 붙인다 (상품명+브랜드로 매칭).
+    badge: "new" | "same" | "up:N" | "down:N" — prev_data 없으면 아무 배지도 안 붙임."""
+    if not prev_data:
+        return data
+    for platform in PLATFORMS:
+        prev_rank_by_key = {
+            (it.get("name"), it.get("brand")): it.get("rank")
+            for it in prev_data.get(platform, [])
+        }
+        for it in data.get(platform, []):
+            key = (it.get("name"), it.get("brand"))
+            prev_rank = prev_rank_by_key.get(key)
+            if prev_rank is None:
+                it["badge"] = "new"
+            else:
+                diff = prev_rank - it["rank"]
+                if diff > 0:
+                    it["badge"] = f"up:{diff}"
+                elif diff < 0:
+                    it["badge"] = f"down:{abs(diff)}"
+                else:
+                    it["badge"] = "same"
+    return data

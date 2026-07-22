@@ -25,7 +25,24 @@ _NAV_JS = """\
 })();
 </script>"""
 
-def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=None, available_dates=None, ecommerce_data=None, naver_prev_data=None, naver_history=None):
+
+def _badge_html(badge):
+    """공용 순위 변동 배지 — 국내 인기순위/이커머스 모두 동일 규칙 사용.
+    badge: None | "new" | "same" | "up:N" | "down:N" """
+    if not badge:
+        return ""
+    if badge == "new":
+        return '<span class="rank-badge badge-new">NEW</span>'
+    if badge == "same":
+        return '<span class="rank-badge badge-same">―</span>'
+    if badge.startswith("up:"):
+        return f'<span class="rank-badge badge-up">▲{badge.split(":")[1]}</span>'
+    if badge.startswith("down:"):
+        return f'<span class="rank-badge badge-down">▼{badge.split(":")[1]}</span>'
+    return ""
+
+
+def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=None, available_dates=None, ecommerce_data=None, naver_prev_data=None, naver_history=None, law_summary=None):
     if overseas_data is None:
         overseas_data = []
     if ecommerce_data is None:
@@ -36,36 +53,39 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     today_file = datetime.now().strftime("%Y%m%d")
 
     _medals = ["🥇", "🥈", "🥉"]
-    _bar_colors = ["#1b4332", "#2d6a4f", "#40916c", "#52b788", "#74c69d"]
+    _bar_colors = ["#fcd535", "#f0b90b", "#eaecef", "#929aa5", "#707a8a"]
+    no_data = '<span class="text-muted small">데이터 수집 중...</span>'
 
     # 전일 스냅샷에서 키워드별 순위(1-base)를 미리 뽑아 둠 — 없으면 배지 생략
     _prev_rank = {d["keyword"]: idx + 1 for idx, d in enumerate(naver_prev_data or [])}
 
-    def _rank_badge(keyword, cur_rank):
+    def _naver_badge_str(keyword, cur_rank):
         if not _prev_rank:
-            return ""
+            return None
         prev = _prev_rank.get(keyword)
         if prev is None:
-            return '<span class="rank-badge badge-new">🆕</span>'
+            return "new"
         diff = prev - cur_rank
         if diff > 0:
-            return f'<span class="rank-badge badge-up">▲{diff}</span>'
+            return f"up:{diff}"
         if diff < 0:
-            return f'<span class="rank-badge badge-down">▼{abs(diff)}</span>'
-        return '<span class="rank-badge badge-same">―</span>'
+            return f"down:{abs(diff)}"
+        return "same"
 
     def _naver_row(i, d):
         rank = _medals[i] if i < 3 else str(i + 1)
         weight = "700" if i < 3 else "400"
         color = _bar_colors[min(i, 4)]
+        badge = _naver_badge_str(d["keyword"], i + 1)
         return (f'<tr>'
                 f'<td class="rank">{rank}</td>'
-                f'<td style="font-weight:{weight}">{d["keyword"]} {_rank_badge(d["keyword"], i + 1)}</td>'
+                f'<td style="font-weight:{weight}">{d["keyword"]} {_badge_html(badge)}</td>'
                 f'<td><div class="bar" style="width:{min(d["ratio"],100)}%;background:{color}">'
                 f'{d["ratio"]:.0f}</div></td>'
                 f'</tr>')
 
     naver_rows = "".join(_naver_row(i, d) for i, d in enumerate(naver_data[:15]))
+
     sns_tags = "".join(
         f'<span class="tag" style="font-size:{min(14+d["count"],22)}px">{d["tag"]} <small>{d["count"]}</small></span>'
         for d in sns_data[:20]
@@ -99,12 +119,11 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     )
     chart_labels = json.dumps([d["keyword"] for d in naver_data[:7]])
     chart_values = json.dumps([d["ratio"] for d in naver_data[:7]])
-    no_data = '<span class="text-muted small">데이터 수집 중...</span>'
 
     # 최근 키워드 검색량 추이 — 저장된 일별 스냅샷 + 오늘 데이터를 이어붙여 라인차트 구성
     _trend_points = list(naver_history) + [{"date": today_file, "data": naver_data}]
     _trend_keywords = [d["keyword"] for d in naver_data[:5]]
-    _line_colors = ["#1b4332", "#40916c", "#74c69d", "#e76f51", "#2a9d8f"]
+    _line_colors = ["#fcd535", "#0ecb81", "#3b82f6", "#f6465d", "#2dbdb6"]
     show_trend_chart = len(_trend_points) >= 2
 
     trend_script = ""
@@ -133,7 +152,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
             "new Chart(ctx2, {\n"
             "  type: 'line',\n"
             f"  data: {{ labels: {trend_labels_json}, datasets: {trend_datasets_json} }},\n"
-            "  options: { responsive: true, scales: { y: { beginAtZero: true } } }\n"
+            "  options: { responsive: true, scales: { y: { beginAtZero: true, grid: { color: '#2b3139' } }, x: { grid: { color: '#2b3139' } } }, plugins: { legend: { labels: { color: '#eaecef' } } } }\n"
             "});"
         )
 
@@ -153,7 +172,8 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
             )
             + f'<div class="ecom-info">'
             f'<div class="ecom-top"><span class="rank">{it["rank"]}</span>'
-            f'<span class="ecom-cat">{it.get("category") or ""}</span></div>'
+            f'<span class="ecom-cat">{it.get("category") or ""}</span>'
+            f'{_badge_html(it.get("badge"))}</div>'
             f'<a class="ecom-name" href="{it["url"]}" target="_blank">{it["name"]}</a>'
             f'<div class="ecom-price">{it["price"]}</div>'
             f'</div></div>'
@@ -165,6 +185,77 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     ecommerce_cols = "".join(_ecommerce_col(key, label) for key, label in _ecommerce_platforms)
     ecommerce_date = ecommerce_data.get("date", "")
 
+    # ── 오늘의 요약 박스 (2026-07-22 신설 — 기존 "오늘의 급상승 키워드" 배너 대체) ──
+    def _ecommerce_highlights():
+        lines = []
+        for key, label in _ecommerce_platforms:
+            for it in ecommerce_data.get(key, []):
+                badge = it.get("badge")
+                if badge == "new":
+                    lines.append((0, f'<div class="summary-line">🆕 <b>[{label.split()[-1]}]</b> {it["name"]}</div>'))
+                elif badge and badge.startswith("up:") and int(badge.split(":")[1]) >= 3:
+                    lines.append((int(badge.split(":")[1]), f'<div class="summary-line">▲{badge.split(":")[1]} <b>[{label.split()[-1]}]</b> {it["name"]}</div>'))
+        lines.sort(key=lambda x: -x[0])
+        return "".join(html for _, html in lines[:5])
+
+    def _naver_top_movers():
+        movers = []
+        for i, d in enumerate(naver_data[:15]):
+            prev = _prev_rank.get(d["keyword"])
+            if prev is None:
+                continue
+            diff = prev - (i + 1)
+            if diff > 0:
+                movers.append((diff, d["keyword"]))
+        movers.sort(key=lambda x: -x[0])
+        if not movers:
+            return no_data
+        return "".join(
+            f'<div class="summary-line">▲{diff} {kw}</div>' for diff, kw in movers[:3]
+        )
+
+    ecommerce_highlights_html = _ecommerce_highlights() or no_data
+    naver_movers_html = _naver_top_movers()
+    latest_research_html = "".join(
+        f'<div class="summary-line">🔬 {n["title"]}</div>'
+        for n in news_data.get("research", [])[:2]
+    ) or no_data
+
+    law_summary = law_summary or {}
+    _law_text = law_summary.get("weekly_summary") or law_summary.get("summary") or ""
+    law_summary_html = f'<div class="summary-line">{_law_text}</div>' if _law_text else no_data
+    law_label = law_summary.get("label", "")
+
+    summary_box = f"""
+  <div class="card mb-3 summary-card">
+    <div class="card-header">📋 오늘의 요약</div>
+    <div class="card-body">
+      <div class="summary-grid">
+        <div class="summary-block">
+          <div class="summary-label">🔥 급상승 키워드</div>
+          {rising_tags if rising_tags else no_data}
+        </div>
+        <div class="summary-block">
+          <div class="summary-label">🏛 식약처 법령 요약{f" ({law_label})" if law_label else ""}</div>
+          {law_summary_html}
+        </div>
+        <div class="summary-block">
+          <div class="summary-label">🛒 이커머스 신규·급등</div>
+          {ecommerce_highlights_html}
+        </div>
+        <div class="summary-block">
+          <div class="summary-label">📊 국내 검색 급상승 TOP3</div>
+          {naver_movers_html}
+        </div>
+        <div class="summary-block">
+          <div class="summary-label">🔬 최신 연구 소식</div>
+          {latest_research_html}
+        </div>
+      </div>
+      <div class="card-source">급상승: Google Trends(국내 KR) · 법령: 식품법령모니터 연동(주간) · 이커머스: 전일 대비 · 검색급상승/연구: 네이버 데이터랩·뉴스 API</div>
+    </div>
+  </div>"""
+
     html = f"""<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -173,77 +264,97 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
 <title>건강기능식품 트랜드 - {today}</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
-  body {{ background: #f0f4f8; font-family: 'Malgun Gothic', sans-serif; }}
-  .header {{ background: linear-gradient(135deg, #2d6a4f, #52b788); color: white; padding: 20px 30px; border-radius: 0 0 16px 16px; }}
-  .header h1 {{ font-size: 1.6rem; margin: 0; }}
-  .header .date {{ opacity: 0.85; font-size: 0.95rem; }}
-  .card {{ border: none; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); margin-bottom: 20px; }}
-  .card-header {{ background: #fff; border-bottom: 2px solid #e9ecef; border-radius: 12px 12px 0 0 !important; font-weight: 700; font-size: 1rem; padding: 14px 18px; }}
-  .card-header.research {{ border-bottom-color: #d0ebff; }}
-  .card-header.regulatory {{ border-bottom-color: #fff3bf; }}
-  .rank {{ width: 32px; color: #adb5bd; font-weight: 700; }}
-  .rank-badge {{ font-size: 0.72rem; font-weight: 700; margin-left: 4px; }}
-  .badge-new {{ color: #2b8a3e; }}
-  .badge-up {{ color: #e03131; }}
-  .badge-down {{ color: #1971c2; }}
-  .badge-same {{ color: #adb5bd; }}
-  .bar {{ background: #52b788; height: 18px; border-radius: 4px; min-width: 4px; color: white; font-size: 11px; padding: 1px 4px; }}
+  :root {{
+    --canvas: #0b0e11;
+    --surface: #1e2329;
+    --surface-elevated: #2b3139;
+    --hairline: #2b3139;
+    --body-text: #eaecef;
+    --muted: #707a8a;
+    --muted-strong: #929aa5;
+    --primary: #fcd535;
+    --primary-active: #f0b90b;
+    --up: #0ecb81;
+    --down: #f6465d;
+    --info: #3b82f6;
+    --turquoise: #2dbdb6;
+  }}
+  * {{ box-sizing: border-box; }}
+  body {{ background: var(--canvas); color: var(--body-text); font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }}
+  .mono {{ font-family: 'JetBrains Mono', monospace; }}
+  .header {{ background: var(--canvas); border-bottom: 1px solid var(--hairline); color: var(--body-text); padding: 20px 30px; }}
+  .header h1 {{ font-size: 1.5rem; font-weight: 700; margin: 0; }}
+  .header h1 .brand-accent {{ color: var(--primary); }}
+  .header .date {{ opacity: 0.7; font-size: 0.9rem; color: var(--muted-strong); }}
+  .card {{ background: var(--surface); border: none; border-radius: 12px; box-shadow: none; margin-bottom: 20px; }}
+  .card-header {{ background: transparent; color: var(--body-text); border-bottom: 1px solid var(--hairline); border-radius: 12px 12px 0 0 !important; font-weight: 600; font-size: 1rem; padding: 14px 18px; }}
+  .card-header.research {{ border-bottom-color: var(--info); }}
+  .card-header.regulatory {{ border-bottom-color: var(--turquoise); }}
+  .rank {{ width: 32px; color: var(--muted); font-weight: 700; font-family: 'JetBrains Mono', monospace; }}
+  .rank-badge {{ font-size: 0.72rem; font-weight: 700; margin-left: 4px; font-family: 'JetBrains Mono', monospace; }}
+  .badge-new {{ color: var(--primary); }}
+  .badge-up {{ color: var(--up); }}
+  .badge-down {{ color: var(--down); }}
+  .badge-same {{ color: var(--muted); }}
+  .bar {{ background: var(--up); height: 18px; border-radius: 4px; min-width: 4px; color: #0b0e11; font-size: 11px; font-weight: 700; padding: 1px 4px; font-family: 'JetBrains Mono', monospace; }}
   table {{ width: 100%; }}
-  td {{ padding: 6px 8px; vertical-align: middle; font-size: 0.9rem; }}
-  tr:hover {{ background: #f8f9fa; }}
-  .tag {{ display: inline-block; background: #d8f3dc; color: #1b4332; border-radius: 20px; padding: 4px 12px; margin: 4px; cursor: default; }}
-  .rising-tag {{ display: inline-block; background: #fff3cd; color: #856404; border-radius: 8px; padding: 6px 14px; margin: 4px; font-weight: 600; font-size: 0.9rem; }}
-  .news-item {{ padding: 7px 0; border-bottom: 1px solid #f1f3f5; }}
+  td {{ padding: 6px 8px; vertical-align: middle; font-size: 0.9rem; color: var(--body-text); }}
+  tr:hover {{ background: var(--surface-elevated); }}
+  .tag {{ display: inline-block; background: var(--surface-elevated); color: var(--body-text); border-radius: 20px; padding: 4px 12px; margin: 4px; cursor: default; }}
+  .tag small {{ color: var(--muted-strong); font-family: 'JetBrains Mono', monospace; }}
+  .rising-tag {{ display: inline-block; background: #3a3a1f; color: var(--primary); border-radius: 8px; padding: 6px 14px; margin: 4px; font-weight: 600; font-size: 0.9rem; }}
+  .news-item {{ padding: 7px 0; border-bottom: 1px solid var(--hairline); }}
   .news-item:last-child {{ border-bottom: none; }}
-  .news-item a {{ color: #2d6a4f; text-decoration: none; font-size: 0.87rem; line-height: 1.4; }}
-  .news-item a:hover {{ text-decoration: underline; }}
-  .news-date {{ display: block; color: #adb5bd; font-size: 0.76rem; margin-top: 2px; }}
-  .news-source {{ color: #868e96; }}
+  .news-item a {{ color: var(--body-text); text-decoration: none; font-size: 0.87rem; line-height: 1.4; }}
+  .news-item a:hover {{ color: var(--primary); text-decoration: underline; }}
+  .news-date {{ display: block; color: var(--muted); font-size: 0.76rem; margin-top: 2px; }}
+  .news-source {{ color: var(--muted); }}
   .section-icon {{ margin-right: 6px; }}
   .section-label {{ font-size: 0.7rem; font-weight: 600; padding: 2px 7px; border-radius: 10px; margin-left: 6px; vertical-align: middle; }}
-  .label-research {{ background: #d0ebff; color: #1864ab; }}
-  .label-regulatory {{ background: #fff3bf; color: #7d6608; }}
-  .card-source {{ font-size: 0.7rem; color: #ced4da; border-top: 1px solid #f1f3f5; margin-top: 8px; padding-top: 5px; }}
-  .date-select {{ background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; cursor: pointer; }}
-  .date-select option {{ background: #2d6a4f; color: white; }}
-  .ecom-item {{ display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid #f1f3f5; }}
+  .label-research {{ background: rgba(59,130,246,0.15); color: var(--info); }}
+  .label-regulatory {{ background: rgba(45,189,182,0.15); color: var(--turquoise); }}
+  .card-source {{ font-size: 0.7rem; color: var(--muted); border-top: 1px solid var(--hairline); margin-top: 8px; padding-top: 5px; }}
+  .date-select {{ background: var(--surface-elevated); color: var(--body-text); border: 1px solid var(--hairline); border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; cursor: pointer; }}
+  .date-select option {{ background: var(--surface); color: var(--body-text); }}
+  .ecom-item {{ display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--hairline); }}
   .ecom-item:last-child {{ border-bottom: none; }}
-  .ecom-thumb {{ width: 48px; height: 48px; object-fit: cover; border-radius: 6px; flex-shrink: 0; background: #f1f3f5; }}
+  .ecom-thumb {{ width: 48px; height: 48px; object-fit: cover; border-radius: 6px; flex-shrink: 0; background: var(--surface-elevated); }}
   .ecom-info {{ min-width: 0; flex: 1; }}
   .ecom-top {{ display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }}
-  .ecom-cat {{ font-size: 0.68rem; background: #d8f3dc; color: #1b4332; border-radius: 8px; padding: 1px 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }}
-  .ecom-name {{ display: block; color: #212529; text-decoration: none; font-size: 0.85rem; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }}
-  .ecom-name:hover {{ color: #2d6a4f; }}
-  .ecom-price {{ font-size: 0.8rem; color: #495057; font-weight: 700; margin-top: 2px; }}
+  .ecom-cat {{ font-size: 0.68rem; background: rgba(45,189,182,0.15); color: var(--turquoise); border-radius: 8px; padding: 1px 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }}
+  .ecom-name {{ display: block; color: var(--body-text); text-decoration: none; font-size: 0.85rem; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }}
+  .ecom-name:hover {{ color: var(--primary); }}
+  .ecom-price {{ font-size: 0.85rem; color: var(--primary); font-weight: 700; margin-top: 2px; font-family: 'JetBrains Mono', monospace; }}
+  .summary-card {{ border: 1px solid var(--primary); }}
+  .summary-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }}
+  .summary-label {{ font-size: 0.78rem; font-weight: 600; color: var(--muted-strong); margin-bottom: 6px; }}
+  .summary-line {{ font-size: 0.85rem; padding: 3px 0; color: var(--body-text); }}
   @media (max-width: 576px) {{
     .header {{ padding: 14px 16px; }}
-    .header h1 {{ font-size: 1.25rem; }}
+    .header h1 {{ font-size: 1.2rem; }}
     .date-select {{ max-width: 140px; font-size: 0.78rem; }}
     .rising-tag {{ font-size: 0.78rem; padding: 4px 10px; }}
     .card-header {{ font-size: 0.9rem; padding: 10px 14px; }}
     td {{ font-size: 0.82rem; padding: 5px 6px; }}
     .ecom-thumb {{ width: 40px; height: 40px; }}
     .ecom-name {{ font-size: 0.8rem; }}
+    .summary-grid {{ grid-template-columns: 1fr; }}
   }}
 </style>
 </head>
 <body>
 <div class="header mb-4">
   <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <h1 class="mb-0">🌿 건강기능식품 트랜드 대시보드</h1>
+    <h1 class="mb-0"><span class="brand-accent">●</span> 건강기능식품 트랜드 대시보드</h1>
     <select id="date-select" class="date-select" title="과거 날짜 조회"></select>
   </div>
   <div class="date mt-1">{today} &nbsp;|&nbsp; 매일 오전 9시 자동 업데이트</div>
 </div>
 <div class="container-fluid px-4">
-  <div class="card mb-3">
-    <div class="card-header">⚡ 오늘의 급상승 키워드</div>
-    <div class="card-body py-2">
-      {rising_tags if rising_tags else no_data}
-      <div class="card-source">출처: Google Trends 급상승 검색어 (국내 KR, 최근 1일) · 건기식 무관 키워드 자동 제외</div>
-    </div>
-  </div>
+  {summary_box}
   <div class="row">
     <div class="col-md-6 col-xl-4">
       <div class="card">
@@ -259,7 +370,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
         <div class="card-header"><span class="section-icon">💬</span>SNS 화제 키워드</div>
         <div class="card-body">
           {sns_tags if sns_tags else no_data}
-          <div class="card-source">출처: 네이버 트랜드 데이터</div>
+          <div class="card-source">출처: 네이버 블로그 검색 · 숫자 = 해당 키워드 직접 검색 결과 수 + 다른 키워드 검색 결과에 함께 언급된 횟수 (실제 게시글 총량이 아닌 언급 빈도 지수)</div>
         </div>
       </div>
     </div>
@@ -279,7 +390,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
       <div class="row">
         {ecommerce_cols if ecommerce_cols else no_data}
       </div>
-      <div class="card-source">출처: 올리브영·다이소몰·카카오 선물하기 판매순위 크롤러 (별도 시장조사 프로젝트, 자동 수집){f" · 데이터 기준일 {ecommerce_date}" if ecommerce_date else ""}</div>
+      <div class="card-source">출처: 올리브영·다이소몰·카카오 선물하기 판매순위 크롤러 (별도 시장조사 프로젝트, 자동 수집){f" · 데이터 기준일 {ecommerce_date}" if ecommerce_date else ""} · NEW=신규 진입, ▲▼=전일 대비 순위 변동</div>
     </div>
   </div>
   <div class="row">
@@ -324,6 +435,8 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   </div>
 </div>
 <script>
+Chart.defaults.color = '#929aa5';
+Chart.defaults.borderColor = '#2b3139';
 const ctx = document.getElementById('trendChart').getContext('2d');
 new Chart(ctx, {{
   type: 'bar',
@@ -332,8 +445,8 @@ new Chart(ctx, {{
     datasets: [{{
       label: '검색 지수',
       data: {chart_values},
-      backgroundColor: 'rgba(82, 183, 136, 0.7)',
-      borderColor: '#2d6a4f',
+      backgroundColor: 'rgba(252, 213, 53, 0.75)',
+      borderColor: '#fcd535',
       borderWidth: 1,
       borderRadius: 6
     }}]

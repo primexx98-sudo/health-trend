@@ -11,7 +11,8 @@ from collectors.google_trends import get_rising_keywords
 from collectors.sns_collector import get_sns_keywords
 from collectors.news_collector import collect_all_news
 from collectors.overseas_collector import get_overseas_news
-from collectors.ecommerce_collector import get_ecommerce_rankings
+from collectors.ecommerce_collector import get_ecommerce_rankings, attach_rank_changes
+from collectors.law_summary_collector import get_law_weekly_summary
 from generator.dashboard import generate_html
 
 def setup_logging():
@@ -112,6 +113,38 @@ def cleanup_old_snapshots(data_dir, keep_days=30):
     if removed:
         logging.getLogger("main").info(f"오래된 검색량 스냅샷 {removed}개 삭제")
 
+def load_ecommerce_snapshot(data_dir, date_str):
+    path = os.path.join(data_dir, f"ecommerce_{date_str}.json")
+    if not os.path.exists(path):
+        return None
+    try:
+        import json as _json
+        with open(path, "r", encoding="utf-8") as f:
+            return _json.load(f)
+    except Exception:
+        return None
+
+def save_ecommerce_snapshot(data_dir, date_str, ecommerce_data):
+    import json as _json
+    os.makedirs(data_dir, exist_ok=True)
+    path = os.path.join(data_dir, f"ecommerce_{date_str}.json")
+    with open(path, "w", encoding="utf-8") as f:
+        _json.dump(ecommerce_data, f, ensure_ascii=False)
+
+def cleanup_old_ecommerce_snapshots(data_dir, keep_days=30):
+    cutoff = datetime.now() - timedelta(days=keep_days)
+    removed = 0
+    for fpath in glob.glob(os.path.join(data_dir, "ecommerce_????????.json")):
+        try:
+            date_str = os.path.basename(fpath)[len("ecommerce_"):-len(".json")]
+            if datetime.strptime(date_str, "%Y%m%d") < cutoff:
+                os.remove(fpath)
+                removed += 1
+        except Exception:
+            pass
+    if removed:
+        logging.getLogger("main").info(f"오래된 이커머스 스냅샷 {removed}개 삭제")
+
 def main():
     setup_logging()
     logger = logging.getLogger("main")
@@ -130,8 +163,9 @@ def main():
     news_data = collect_all_news()
     overseas_data = get_overseas_news()
 
-    print("[5/5] 이커머스 판매순위 수집 중...")
+    print("[5/5] 이커머스 판매순위·법령 요약 수집 중...")
     ecommerce_data = get_ecommerce_rankings()
+    law_summary = get_law_weekly_summary()
 
     print("대시보드 생성 중...")
     _repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -160,9 +194,14 @@ def main():
         if data:
             naver_history.append({"date": d, "data": data})
 
+    # 이커머스 순위 변동/신규진입 배지 — 전일 스냅샷과 비교
+    ecommerce_prev_data = load_ecommerce_snapshot(_committed_data_dir, yesterday_str)
+    ecommerce_data = attach_rank_changes(ecommerce_data, ecommerce_prev_data)
+
     html, date_str = generate_html(
         naver_data, sns_data, news_data, rising_data, overseas_data,
         ecommerce_data=ecommerce_data, naver_prev_data=naver_prev_data, naver_history=naver_history,
+        law_summary=law_summary,
     )
 
     all_dates = ([date_str] + [d for d in existing if d != date_str])[:30]
@@ -194,6 +233,12 @@ def main():
         _snapshot_dir = os.path.join(OUTPUT_DIR, "data")
         save_naver_snapshot(_snapshot_dir, date_str, naver_data)
         cleanup_old_snapshots(_snapshot_dir)
+
+    # 이커머스 스냅샷 저장 (다음 실행의 순위 변동·신규진입 배지에 사용)
+    if ecommerce_data.get("date"):
+        _snapshot_dir = os.path.join(OUTPUT_DIR, "data")
+        save_ecommerce_snapshot(_snapshot_dir, date_str, ecommerce_data)
+        cleanup_old_ecommerce_snapshots(_snapshot_dir)
 
     logger.info(f"완료: {index_path}")
     print(f"완료! index.html 업데이트됨 (백업: dashboard_{date_str}.html)")
