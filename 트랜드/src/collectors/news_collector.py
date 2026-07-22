@@ -211,6 +211,7 @@ def _collect_from_queries(queries, days=14):
     results, seen = [], set()
     for query in queries:
         items = get_naver_news(query, display=10)
+        kept = 0
         for item in items:
             title = item["title"].replace("<b>", "").replace("</b>", "").replace("&quot;", '"')
             desc = item["description"].replace("<b>", "").replace("</b>", "")
@@ -222,6 +223,7 @@ def _collect_from_queries(queries, days=14):
             if not is_relevant(title, desc):
                 continue
             seen.add(title)
+            kept += 1
             results.append({
                 "title": title,
                 "link": item.get("originallink") or item["link"],
@@ -230,6 +232,7 @@ def _collect_from_queries(queries, days=14):
                 "category": categorize(title, desc),
                 "source": "네이버뉴스",
             })
+        logger.info(f"[쿼리:{query}] API 원본 {len(items)}건 → 필터 통과 {kept}건")
     return results
 
 
