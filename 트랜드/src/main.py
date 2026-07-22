@@ -11,6 +11,7 @@ from collectors.google_trends import get_global_trends, get_rising_keywords
 from collectors.sns_collector import get_sns_keywords
 from collectors.news_collector import collect_all_news
 from collectors.overseas_collector import get_overseas_news
+from collectors.ecommerce_collector import get_ecommerce_rankings
 from generator.dashboard import generate_html
 
 def setup_logging():
@@ -79,26 +80,61 @@ def cleanup_old_dashboards(output_dir, keep_days=30):
     if removed:
         logging.getLogger("main").info(f"오래된 대시보드 {removed}개 삭제")
 
+def load_naver_snapshot(data_dir, date_str):
+    path = os.path.join(data_dir, f"naver_{date_str}.json")
+    if not os.path.exists(path):
+        return None
+    try:
+        import json as _json
+        with open(path, "r", encoding="utf-8") as f:
+            return _json.load(f)
+    except Exception:
+        return None
+
+def save_naver_snapshot(data_dir, date_str, naver_data):
+    import json as _json
+    os.makedirs(data_dir, exist_ok=True)
+    path = os.path.join(data_dir, f"naver_{date_str}.json")
+    with open(path, "w", encoding="utf-8") as f:
+        _json.dump(naver_data, f, ensure_ascii=False)
+
+def cleanup_old_snapshots(data_dir, keep_days=30):
+    cutoff = datetime.now() - timedelta(days=keep_days)
+    removed = 0
+    for fpath in glob.glob(os.path.join(data_dir, "naver_????????.json")):
+        try:
+            date_str = os.path.basename(fpath)[len("naver_"):-len(".json")]
+            if datetime.strptime(date_str, "%Y%m%d") < cutoff:
+                os.remove(fpath)
+                removed += 1
+        except Exception:
+            pass
+    if removed:
+        logging.getLogger("main").info(f"오래된 검색량 스냅샷 {removed}개 삭제")
+
 def main():
     setup_logging()
     logger = logging.getLogger("main")
     logger.info("트랜드 수집 시작")
 
-    print("[1/5] 국내 키워드 순위 수집 중...")
+    print("[1/6] 국내 키워드 순위 수집 중...")
     naver_data = get_top_keywords() or [{"keyword": "데이터 없음", "ratio": 0}]
 
-    print("[2/5] 글로벌 트랜드 수집 중...")
+    print("[2/6] 글로벌 트랜드 수집 중...")
     google_data = get_global_trends()
     rising_data = get_rising_keywords()
 
-    print("[3/5] SNS 키워드 수집 중...")
+    print("[3/6] SNS 키워드 수집 중...")
     sns_data = get_sns_keywords()
 
-    print("[4/5] 뉴스/연구 동향 수집 중...")
+    print("[4/6] 뉴스/연구 동향 수집 중...")
     news_data = collect_all_news()
 
-    print("[5/5] 해외 업계 동향 수집 중...")
+    print("[5/6] 해외 업계 동향 수집 중...")
     overseas_data = get_overseas_news()
+
+    print("[6/6] 이커머스 판매순위 수집 중...")
+    ecommerce_data = get_ecommerce_rankings()
 
     print("대시보드 생성 중...")
     _repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -110,7 +146,27 @@ def main():
          for f in glob.glob(os.path.join(_committed_docs, "dashboard_????????.html"))],
         reverse=True,
     )
-    html, date_str = generate_html(naver_data, google_data, sns_data, news_data, rising_data, overseas_data)
+
+    # 국내 인기순위 히스토리 — 커밋된 docs/data/의 스냅샷 기준 (이번 실행분 저장 전 상태)
+    _committed_data_dir = os.path.join(_committed_docs, "data")
+    _today_str = datetime.now().strftime("%Y%m%d")
+    yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
+    naver_prev_data = load_naver_snapshot(_committed_data_dir, yesterday_str)
+
+    history_files = sorted(glob.glob(os.path.join(_committed_data_dir, "naver_????????.json")))[-14:]
+    naver_history = []
+    for fpath in history_files:
+        d = os.path.basename(fpath)[len("naver_"):-len(".json")]
+        if d == _today_str:
+            continue
+        data = load_naver_snapshot(_committed_data_dir, d)
+        if data:
+            naver_history.append({"date": d, "data": data})
+
+    html, date_str = generate_html(
+        naver_data, google_data, sns_data, news_data, rising_data, overseas_data,
+        ecommerce_data=ecommerce_data, naver_prev_data=naver_prev_data, naver_history=naver_history,
+    )
 
     all_dates = ([date_str] + [d for d in existing if d != date_str])[:30]
 
@@ -135,6 +191,12 @@ def main():
     patch_legacy_dashboards(_committed_docs)
 
     cleanup_old_dashboards(OUTPUT_DIR)
+
+    # 국내 인기순위 스냅샷 저장 (다음 실행의 순위 변동 배지·추이 차트에 사용) — 수집 실패 폴백 데이터는 저장하지 않음
+    if not (len(naver_data) == 1 and naver_data[0]["keyword"] == "데이터 없음"):
+        _snapshot_dir = os.path.join(OUTPUT_DIR, "data")
+        save_naver_snapshot(_snapshot_dir, date_str, naver_data)
+        cleanup_old_snapshots(_snapshot_dir)
 
     logger.info(f"완료: {index_path}")
     print(f"완료! index.html 업데이트됨 (백업: dashboard_{date_str}.html)")

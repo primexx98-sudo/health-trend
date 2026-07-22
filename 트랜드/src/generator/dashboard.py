@@ -25,14 +25,34 @@ _NAV_JS = """\
 })();
 </script>"""
 
-def generate_html(naver_data, google_data, sns_data, news_data, rising_data, overseas_data=None, available_dates=None):
+def generate_html(naver_data, google_data, sns_data, news_data, rising_data, overseas_data=None, available_dates=None, ecommerce_data=None, naver_prev_data=None, naver_history=None):
     if overseas_data is None:
         overseas_data = []
+    if ecommerce_data is None:
+        ecommerce_data = {}
+    if naver_history is None:
+        naver_history = []
     today = datetime.now().strftime("%Y년 %m월 %d일 (%a)")
     today_file = datetime.now().strftime("%Y%m%d")
 
     _medals = ["🥇", "🥈", "🥉"]
     _bar_colors = ["#1b4332", "#2d6a4f", "#40916c", "#52b788", "#74c69d"]
+
+    # 전일 스냅샷에서 키워드별 순위(1-base)를 미리 뽑아 둠 — 없으면 배지 생략
+    _prev_rank = {d["keyword"]: idx + 1 for idx, d in enumerate(naver_prev_data or [])}
+
+    def _rank_badge(keyword, cur_rank):
+        if not _prev_rank:
+            return ""
+        prev = _prev_rank.get(keyword)
+        if prev is None:
+            return '<span class="rank-badge badge-new">🆕</span>'
+        diff = prev - cur_rank
+        if diff > 0:
+            return f'<span class="rank-badge badge-up">▲{diff}</span>'
+        if diff < 0:
+            return f'<span class="rank-badge badge-down">▼{abs(diff)}</span>'
+        return '<span class="rank-badge badge-same">―</span>'
 
     def _naver_row(i, d):
         rank = _medals[i] if i < 3 else str(i + 1)
@@ -40,7 +60,7 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
         color = _bar_colors[min(i, 4)]
         return (f'<tr>'
                 f'<td class="rank">{rank}</td>'
-                f'<td style="font-weight:{weight}">{d["keyword"]}</td>'
+                f'<td style="font-weight:{weight}">{d["keyword"]} {_rank_badge(d["keyword"], i + 1)}</td>'
                 f'<td><div class="bar" style="width:{min(d["ratio"],100)}%;background:{color}">'
                 f'{d["ratio"]:.0f}</div></td>'
                 f'</tr>')
@@ -86,6 +106,62 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
     chart_values = json.dumps([d["ratio"] for d in naver_data[:7]])
     no_data = '<span class="text-muted small">데이터 수집 중...</span>'
 
+    # 최근 키워드 검색량 추이 — 저장된 일별 스냅샷 + 오늘 데이터를 이어붙여 라인차트 구성
+    _trend_points = list(naver_history) + [{"date": today_file, "data": naver_data}]
+    _trend_keywords = [d["keyword"] for d in naver_data[:5]]
+    _line_colors = ["#1b4332", "#40916c", "#74c69d", "#e76f51", "#2a9d8f"]
+    show_trend_chart = len(_trend_points) >= 2
+
+    trend_script = ""
+    if show_trend_chart:
+        trend_labels_json = json.dumps([f'{p["date"][4:6]}/{p["date"][6:8]}' for p in _trend_points])
+
+        def _series_for(keyword):
+            return [
+                next((x["ratio"] for x in p["data"] if x["keyword"] == keyword), None)
+                for p in _trend_points
+            ]
+
+        trend_datasets_json = json.dumps([
+            {
+                "label": kw,
+                "data": _series_for(kw),
+                "borderColor": _line_colors[i % len(_line_colors)],
+                "backgroundColor": "transparent",
+                "tension": 0.3,
+                "spanGaps": True,
+            }
+            for i, kw in enumerate(_trend_keywords)
+        ])
+        trend_script = (
+            "const ctx2 = document.getElementById('trendHistoryChart').getContext('2d');\n"
+            "new Chart(ctx2, {\n"
+            "  type: 'line',\n"
+            f"  data: {{ labels: {trend_labels_json}, datasets: {trend_datasets_json} }},\n"
+            "  options: { responsive: true, scales: { y: { beginAtZero: true } } }\n"
+            "});"
+        )
+
+    _ecommerce_platforms = [
+        ("카카오선물하기", "🎁 카카오 선물하기"),
+        ("다이소몰", "🏪 다이소몰"),
+        ("올리브영", "💚 올리브영"),
+    ]
+
+    def _ecommerce_col(key, label):
+        items = ecommerce_data.get(key, [])
+        rows = "".join(
+            f'<tr><td class="rank">{it["rank"]}</td>'
+            f'<td><a href="{it["url"]}" target="_blank">{it["name"]}</a></td>'
+            f'<td class="text-nowrap">{it["price"]}</td></tr>'
+            for it in items
+        )
+        body = f'<div class="table-responsive"><table><tbody>{rows}</tbody></table></div>' if rows else no_data
+        return f'<div class="col-md-4"><div class="fw-bold mb-1">{label}</div>{body}</div>'
+
+    ecommerce_cols = "".join(_ecommerce_col(key, label) for key, label in _ecommerce_platforms)
+    ecommerce_date = ecommerce_data.get("date", "")
+
     html = f"""<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -105,6 +181,11 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
   .card-header.regulatory {{ border-bottom-color: #fff3bf; }}
   .card-header.overseas {{ border-bottom-color: #ffe3e3; }}
   .rank {{ width: 32px; color: #adb5bd; font-weight: 700; }}
+  .rank-badge {{ font-size: 0.72rem; font-weight: 700; margin-left: 4px; }}
+  .badge-new {{ color: #2b8a3e; }}
+  .badge-up {{ color: #e03131; }}
+  .badge-down {{ color: #1971c2; }}
+  .badge-same {{ color: #adb5bd; }}
   .bar {{ background: #52b788; height: 18px; border-radius: 4px; min-width: 4px; color: white; font-size: 11px; padding: 1px 4px; }}
   .bar-green {{ background: #74c69d; }}
   table {{ width: 100%; }}
@@ -126,6 +207,14 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
   .card-source {{ font-size: 0.7rem; color: #ced4da; border-top: 1px solid #f1f3f5; margin-top: 8px; padding-top: 5px; }}
   .date-select {{ background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; cursor: pointer; }}
   .date-select option {{ background: #2d6a4f; color: white; }}
+  @media (max-width: 576px) {{
+    .header {{ padding: 14px 16px; }}
+    .header h1 {{ font-size: 1.25rem; }}
+    .date-select {{ max-width: 140px; font-size: 0.78rem; }}
+    .rising-tag {{ font-size: 0.78rem; padding: 4px 10px; }}
+    .card-header {{ font-size: 0.9rem; padding: 10px 14px; }}
+    td {{ font-size: 0.82rem; padding: 5px 6px; }}
+  }}
 </style>
 </head>
 <body>
@@ -182,6 +271,15 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
       </div>
     </div>
   </div>
+  <div class="card mb-3">
+    <div class="card-header"><span class="section-icon">🛒</span>이커머스 판매순위 TOP3</div>
+    <div class="card-body p-2">
+      <div class="row">
+        {ecommerce_cols if ecommerce_cols else no_data}
+      </div>
+      <div class="card-source">출처: 올리브영·다이소몰·카카오 선물하기 판매순위 크롤러 (별도 시장조사 프로젝트, 자동 수집){f" · 데이터 기준일 {ecommerce_date}" if ecommerce_date else ""}</div>
+    </div>
+  </div>
   <div class="row">
     <div class="col-md-4">
       <div class="card">
@@ -227,6 +325,13 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
       <div class="card-source">출처: 네이버 데이터랩 검색 트랜드 API (최근 7일 평균)</div>
     </div>
   </div>
+  <div class="card">
+    <div class="card-header"><span class="section-icon">📉</span>최근 키워드 검색량 추이</div>
+    <div class="card-body">
+      {'<canvas id="trendHistoryChart" height="80"></canvas>' if show_trend_chart else '<span class="text-muted small">스냅샷이 2일 이상 쌓이면 추이가 표시됩니다</span>'}
+      <div class="card-source">출처: 네이버 데이터랩 검색 트랜드 API (일별 스냅샷 누적, 최대 14일)</div>
+    </div>
+  </div>
 </div>
 <script>
 const ctx = document.getElementById('trendChart').getContext('2d');
@@ -249,6 +354,7 @@ new Chart(ctx, {{
     scales: {{ y: {{ beginAtZero: true }} }}
   }}
 }});
+{trend_script}
 </script>
 {_NAV_JS}
 </body>

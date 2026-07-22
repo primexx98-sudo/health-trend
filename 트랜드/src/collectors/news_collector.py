@@ -6,38 +6,9 @@ from email.utils import parsedate_to_datetime
 from datetime import datetime, timedelta, timezone
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import NAVER_CLIENT_ID, NAVER_CLIENT_SECRET
+from config import NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, HEALTH_KEYWORDS
 
 logger = logging.getLogger(__name__)
-
-# 건강기능식품 관련 핵심 키워드 — 이 중 하나라도 포함되면 수집 대상
-HEALTH_KEYWORDS = [
-    # 제품 카테고리
-    "건강기능식품", "영양제", "보충제", "기능성식품", "서플리먼트",
-    "다이어트보조제", "스포츠영양제", "기능성건강식품",
-    # 성분명 (기존)
-    "비타민", "유산균", "오메가3", "콜라겐", "홍삼", "마그네슘",
-    "프로바이오틱스", "글루타치온", "코엔자임Q10", "루테인",
-    "아연", "칼슘", "철분", "크레아틴", "밀크시슬", "엽산",
-    "비오틴", "NMN", "NAD", "레스베라트롤", "커큐민",
-    "베타글루칸", "아스타잔틴",
-    # 성분명 (추가)
-    "쏘팔메토", "크릴오일", "스피루리나", "클로렐라", "강황",
-    "포스파티딜세린", "글루코사민", "콘드로이틴", "히알루론산", "보스웰리아",
-    "인삼", "흑삼", "산양삼", "홍경천", "바나바", "여주추출물",
-    "HMB", "L-카르니틴", "아르기닌", "퀘르세틴", "베르베린",
-    "GABA", "테아닌", "멜라토닌",
-    # 효능/목적 (기존)
-    "면역력", "항산화", "장건강", "피로회복",
-    "콜레스테롤", "체지방", "수면 개선",
-    # 효능/목적 (추가)
-    "혈당", "혈압", "뼈건강", "관절건강", "눈건강", "기억력", "인지기능",
-    "갱년기", "체중관리",
-    # 규제/인정 체계
-    "개별인정", "개별인정형", "고시형", "기능성 원료", "개정고시", "GMP",
-    # 기관
-    "식품의약품안전처",
-]
 
 # 명백히 건강기능식품과 무관한 주제 — 병원뉴스 타겟
 EXCLUDE_KEYWORDS = [
@@ -82,7 +53,9 @@ KOREAN_RSS_FEEDS = [
     {"name": "헬스조선",        "url": "https://health.chosun.com/site/data/rss/rss.xml",    "trusted": True},
     {"name": "식품음료신문",    "url": "http://www.thinkfood.co.kr/rss/allArticle.xml",       "trusted": True},
     {"name": "히트뉴스",        "url": "http://www.hitnews.co.kr/rss/allArticle.xml",         "trusted": True},
+    {"name": "코메디닷컴",      "url": "https://kormedi.com/feed/",                            "trusted": True},
     {"name": "팜뉴스",          "url": "http://www.pharmnews.com/rss/allArticle.xml",         "trusted": False},
+    {"name": "뉴시스 헬스",     "url": "https://www.newsis.com/RSS/health.xml",               "trusted": False},
     {"name": "메디소비자뉴스",  "url": "https://www.medisobizanews.com/rss/allArticle.xml",   "trusted": False},
     {"name": "식품저널",        "url": "https://www.foodnews.co.kr/rss/allArticle.xml",       "trusted": False},
     {"name": "뉴스1 생활",      "url": "https://www.news1.kr/rss/life.xml",                   "trusted": False},

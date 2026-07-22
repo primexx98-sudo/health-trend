@@ -22,6 +22,8 @@ RISING_BLACKLIST = [
     "병원", "약국", "처방", "수술", "치료",
     # 기타
     "부동산", "주식", "펀드", "코인", "게임",
+    # 커뮤니티/게시판 (진짜 트랜드가 아닌 출처 잡음)
+    "디시", "갤러리", "인벤", "루리웹", "네이트판", "더쿠", "펨코", "뽐뿌", "커뮤니티",
 ]
 
 # 급상승 키워드가 건기식 관련임을 판단하는 최소 포함 조건
@@ -74,33 +76,62 @@ def get_global_trends():
         logger.error(f"Google Trends 수집 실패: {e}")
         return []
 
+# 1차 시드에서 결과가 없을 때 시도하는 2차 시드 (건기식 무관 필터로 자주 공란이 되는 문제 완화)
+_FALLBACK_SEED = ["루테인", "콜라겐", "마그네슘", "단백질보충제", "프로바이오틱스"]
+
+
+def _fetch_rising(pytrends, seed_keywords):
+    pytrends.build_payload(seed_keywords, timeframe="now 1-d", geo="KR")
+    time.sleep(1)
+    related = pytrends.related_queries()
+
+    rising = []
+    for kw, data in related.items():
+        if data and data.get("rising") is not None:
+            df = data["rising"]
+            if not df.empty:
+                for _, row in df.head(5).iterrows():
+                    rising.append({"keyword": _normalize_spacing(row["query"]), "value": row["value"]})
+    return rising
+
+
+def _filter_relevant(rising):
+    filtered = [
+        r for r in rising
+        if not any(bl in r["keyword"] for bl in RISING_BLACKLIST)
+    ]
+    relevant = [
+        r for r in filtered
+        if any(term in r["keyword"] for term in RISING_RELEVANT_TERMS)
+    ]
+    return filtered, relevant
+
+
+def _dedup(relevant):
+    best = {}
+    for r in relevant:
+        key = r["keyword"].replace(" ", "")
+        if key not in best or r["value"] > best[key]["value"]:
+            best[key] = r
+    return list(best.values())
+
+
 def get_rising_keywords():
     """Google Trends - 급상승 키워드"""
     try:
         pytrends = TrendReq(hl="ko", tz=540, timeout=(10, 25))
-        pytrends.build_payload(["건강기능식품", "영양제", "비타민", "유산균", "오메가3"], timeframe="now 1-d", geo="KR")
-        time.sleep(1)
-        related = pytrends.related_queries()
 
-        rising = []
-        for kw, data in related.items():
-            if data and data.get("rising") is not None:
-                df = data["rising"]
-                if not df.empty:
-                    for _, row in df.head(5).iterrows():
-                        rising.append({"keyword": _normalize_spacing(row["query"]), "value": row["value"]})
+        rising = _fetch_rising(pytrends, ["건강기능식품", "영양제", "비타민", "유산균", "오메가3"])
+        filtered, relevant = _filter_relevant(rising)
+        logger.info(f"급상승 키워드 1차 수집 {len(rising)}개 → 블랙리스트 {len(filtered)}개 → 관련성 {len(relevant)}개")
 
-        # 블랙리스트 필터
-        filtered = [
-            r for r in rising
-            if not any(bl in r["keyword"] for bl in RISING_BLACKLIST)
-        ]
-        # 건기식 관련 키워드만 허용 (최소 1개 관련 용어 포함)
-        relevant = [
-            r for r in filtered
-            if any(term in r["keyword"] for term in RISING_RELEVANT_TERMS)
-        ]
-        logger.info(f"급상승 키워드 수집 {len(rising)}개 → 블랙리스트 {len(filtered)}개 → 관련성 {len(relevant)}개")
+        if not relevant:
+            rising2 = _fetch_rising(pytrends, _FALLBACK_SEED)
+            filtered2, relevant2 = _filter_relevant(rising2)
+            logger.info(f"급상승 키워드 2차 수집 {len(rising2)}개 → 블랙리스트 {len(filtered2)}개 → 관련성 {len(relevant2)}개")
+            relevant = relevant2
+
+        relevant = sorted(_dedup(relevant), key=lambda r: r["value"], reverse=True)
         return relevant[:10]
     except Exception as e:
         logger.error(f"급상승 키워드 수집 실패: {e}")
