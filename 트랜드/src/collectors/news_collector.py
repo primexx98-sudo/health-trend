@@ -32,6 +32,17 @@ RESEARCH_KEYWORDS = [
     "연구", "임상", "논문", "학회", "발표", "분석",
     "효능 확인", "실험", "메타분석", "성분 연구", "임상시험",
 ]
+
+# HEALTH_KEYWORDS 중 "면역력·체지방·혈당" 같은 범용 효능어는 일반 의료/다이어트
+# 뉴스에도 흔해 relevance 판정이 너무 헐거워짐 — 관련성·research 분류 판정에는
+# 이 범용어를 뺀 "핵심" 성분/제품 키워드만 사용한다 (SNS 집계 등 다른 용도의
+# HEALTH_KEYWORDS 원본은 그대로 둠, config.py 참고).
+_GENERIC_EFFECT_KEYWORDS = {
+    "면역력", "항산화", "장건강", "피로회복", "콜레스테롤", "체지방", "수면 개선",
+    "혈당", "혈압", "뼈건강", "관절건강", "눈건강", "기억력", "인지기능",
+    "갱년기", "체중관리",
+}
+CORE_HEALTH_KEYWORDS = [kw for kw in HEALTH_KEYWORDS if kw not in _GENERIC_EFFECT_KEYWORDS]
 REGULATORY_KEYWORDS = [
     # 기관
     "식약처", "식품의약품안전처",
@@ -104,18 +115,21 @@ def is_relevant(title, desc="", trusted_source=False):
     if any(ex in combined for ex in EXCLUDE_KEYWORDS):
         return False
     if trusted_source:
-        # 건기식 전문 매체는 성분·규제·연구 키워드 모두 허용 (병원뉴스는 EXCLUDE로 차단)
-        broad = HEALTH_KEYWORDS + RESEARCH_KEYWORDS + REGULATORY_KEYWORDS
+        # 건기식 전문 매체라도 "연구/분석/발표" 같은 범용 단어만으로는 통과시키지
+        # 않음 — 실제 성분/제품명 또는 규제 키워드가 있어야 함 (일반 의료·다이어트
+        # 뉴스가 research로 잘못 분류되던 문제, 2026-07-22 수정)
+        broad = CORE_HEALTH_KEYWORDS + REGULATORY_KEYWORDS
         return any(kw in combined for kw in broad)
-    return any(kw in title for kw in HEALTH_KEYWORDS) or \
-           any(kw in desc for kw in HEALTH_KEYWORDS)
+    return any(kw in title for kw in CORE_HEALTH_KEYWORDS) or \
+           any(kw in desc for kw in CORE_HEALTH_KEYWORDS)
 
 
 def categorize(title, desc=""):
     combined = title + " " + desc
     if any(kw in combined for kw in REGULATORY_KEYWORDS):
         return "regulatory"
-    if any(kw in combined for kw in RESEARCH_KEYWORDS):
+    # research는 "연구"류 단어 + 실제 성분/제품 키워드가 함께 있어야 인정
+    if any(kw in combined for kw in RESEARCH_KEYWORDS) and any(kw in combined for kw in CORE_HEALTH_KEYWORDS):
         return "research"
     return "general"
 

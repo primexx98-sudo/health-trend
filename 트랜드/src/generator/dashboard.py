@@ -27,7 +27,7 @@ _NAV_JS = """\
 
 def generate_html(naver_data, google_data, sns_data, news_data, rising_data, overseas_data=None, available_dates=None, ecommerce_data=None, naver_prev_data=None, naver_history=None):
     if overseas_data is None:
-        overseas_data = []
+        overseas_data = {}
     if ecommerce_data is None:
         ecommerce_data = {}
     if naver_history is None:
@@ -80,23 +80,32 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
         f'<span class="news-date">{n.get("source", "네이버뉴스")} · {n["pubDate"][:16]}</span></div>'
         for n in news_data.get("news", [])
     )
-    research_items = "".join(
+    domestic_research = "".join(
         f'<div class="news-item"><a href="{n["link"]}" target="_blank">🔬 {n["title"]}</a>'
         f'<span class="news-date">{n.get("source", "네이버뉴스")} · {n["pubDate"][:16]}</span></div>'
         for n in news_data.get("research", [])
     )
+    overseas_research = "".join(
+        f'<div class="news-item">'
+        f'<a href="{n["link"]}" target="_blank">🌐 {n.get("title_ko", n["title"])}</a>'
+        f'<span class="news-date news-source">[{n["source"]}] {n["pubDate"][:16]}</span>'
+        f'</div>'
+        for n in overseas_data.get("research", [])
+    )
+    research_items = domestic_research + overseas_research
     regulatory_items = "".join(
         f'<div class="news-item"><a href="{n["link"]}" target="_blank">🏛 {n["title"]}</a>'
         f'<span class="news-date">{n.get("source", "네이버뉴스")} · {n["pubDate"][:16]}</span></div>'
         for n in news_data.get("regulatory", [])
     )
     # 번역된 제목(title_ko) 있으면 우선 표시, 없으면 영문 원문
+    # (ScienceDaily 등 "research" 타입은 위 research_items에 이미 합류시켰으므로 여기선 industry만)
     overseas_items = "".join(
         f'<div class="news-item">'
         f'<a href="{n["link"]}" target="_blank">{n.get("title_ko", n["title"])}</a>'
         f'<span class="news-date news-source">[{n["source"]}] {n["pubDate"][:16]}</span>'
         f'</div>'
-        for n in overseas_data
+        for n in overseas_data.get("industry", [])
     )
     rising_tags = "".join(
         f'<span class="rising-tag">🔥 {r["keyword"]}</span>'

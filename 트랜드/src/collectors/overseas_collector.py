@@ -10,26 +10,49 @@ from email.utils import parsedate_to_datetime
 logger = logging.getLogger(__name__)
 
 # ─── 해외 RSS 피드 (직접 추가/수정 가능) ──────────────────────────
+# type="industry" → 해외 업계 동향 카드, type="research" → 국내 연구·임상 동향 카드에 합류(🌐 표시)
 RSS_FEEDS = [
     {
         "name": "Nutraceuticals World",
         "url":  "https://www.nutraceuticalsworld.com/rss/",
         "parser": "xml",
+        "type": "industry",
     },
     {
         "name": "ScienceDaily — Dietary Supplements",
         "url":  "https://www.sciencedaily.com/rss/health_medicine/dietary_supplements.xml",
         "parser": "xml",
+        "type": "research",
     },
     {
         "name": "ScienceDaily — Nutrition",
         "url":  "https://www.sciencedaily.com/rss/health_medicine/nutrition.xml",
         "parser": "xml",
+        "type": "research",
     },
     {
         "name": "ScienceDaily — Vitamins",
         "url":  "https://www.sciencedaily.com/rss/health_medicine/vitamins.xml",
         "parser": "xml",
+        "type": "research",
+    },
+    {
+        "name": "ScienceDaily — Vitamin D",
+        "url":  "https://www.sciencedaily.com/rss/health_medicine/vitamin_d.xml",
+        "parser": "xml",
+        "type": "research",
+    },
+    {
+        "name": "ScienceDaily — Immune System",
+        "url":  "https://www.sciencedaily.com/rss/health_medicine/immune_system.xml",
+        "parser": "xml",
+        "type": "research",
+    },
+    {
+        "name": "ScienceDaily — Diet and Weight Loss",
+        "url":  "https://www.sciencedaily.com/rss/health_medicine/diet_and_weight_loss.xml",
+        "parser": "xml",
+        "type": "research",
     },
 ]
 
@@ -97,6 +120,7 @@ def parse_rss(feed_info):
                 "pubDate":     pub_text,
                 "source":      feed_info["name"],
                 "description": desc_text,
+                "type":        feed_info.get("type", "industry"),
             })
 
         logger.info(f"[{feed_info['name']}] {len(items)}건 수집")
@@ -106,12 +130,19 @@ def parse_rss(feed_info):
 
 
 def get_overseas_news():
+    """반환: {"industry": [...], "research": [...]} — industry는 해외 업계 동향 카드,
+    research는 국내 연구·임상 동향 카드에 합류시켜 해외 논문·임상 비중을 높인다."""
     all_items, seen = [], set()
     for feed in RSS_FEEDS:
         for item in parse_rss(feed):
             if item["title"] not in seen:
                 seen.add(item["title"])
                 all_items.append(item)
-    logger.info(f"해외 업계 동향 합계 {len(all_items)}건")
-    all_items = translate_overseas_items(all_items[:12])
-    return all_items
+
+    industry = [i for i in all_items if i["type"] == "industry"]
+    research = [i for i in all_items if i["type"] == "research"]
+    logger.info(f"해외 업계 동향 {len(industry)}건, 해외 연구 {len(research)}건")
+
+    industry = translate_overseas_items(industry[:12])
+    research = translate_overseas_items(research[:12])
+    return {"industry": industry, "research": research}
