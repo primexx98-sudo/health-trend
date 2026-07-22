@@ -1,6 +1,5 @@
 import requests
 import logging
-from urllib.parse import quote
 from bs4 import BeautifulSoup
 from email.utils import parsedate_to_datetime
 from datetime import datetime, timedelta, timezone
@@ -136,7 +135,9 @@ def categorize(title, desc=""):
 
 def get_naver_news(query, display=10):
     url = "https://openapi.naver.com/v1/search/news.json"
-    params = {"query": quote(query), "display": display, "start": 1, "sort": "date"}
+    # requests가 params 값을 자동으로 URL 인코딩하므로 quote()를 또 적용하면 이중 인코딩되어
+    # 쿼리가 깨짐 (Naver가 의도한 검색어를 못 읽고 무관한 결과를 반환하던 원인, 2026-07-22 발견)
+    params = {"query": query, "display": display, "start": 1, "sort": "date"}
     headers = {
         "X-Naver-Client-Id": NAVER_CLIENT_ID,
         "X-Naver-Client-Secret": NAVER_CLIENT_SECRET
@@ -212,7 +213,6 @@ def _collect_from_queries(queries, days=14):
     for query in queries:
         items = get_naver_news(query, display=10)
         kept = 0
-        rejected_sample = None
         for item in items:
             title = item["title"].replace("<b>", "").replace("</b>", "").replace("&quot;", '"')
             desc = item["description"].replace("<b>", "").replace("</b>", "")
@@ -220,12 +220,8 @@ def _collect_from_queries(queries, days=14):
             if title in seen:
                 continue
             if not is_recent(pub_date, days=days):
-                if rejected_sample is None:
-                    rejected_sample = f"RECENCY 탈락 [{pub_date}] {title}"
                 continue
             if not is_relevant(title, desc):
-                if rejected_sample is None:
-                    rejected_sample = f"RELEVANCE 탈락 {title} || {desc[:80]}"
                 continue
             seen.add(title)
             kept += 1
@@ -237,7 +233,7 @@ def _collect_from_queries(queries, days=14):
                 "category": categorize(title, desc),
                 "source": "네이버뉴스",
             })
-        logger.info(f"[쿼리:{query}] API 원본 {len(items)}건 → 필터 통과 {kept}건" + (f" | 예시: {rejected_sample}" if kept == 0 and rejected_sample else ""))
+        logger.info(f"[쿼리:{query}] API 원본 {len(items)}건 → 필터 통과 {kept}건")
     return results
 
 

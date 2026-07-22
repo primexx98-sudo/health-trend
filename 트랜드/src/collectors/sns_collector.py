@@ -1,6 +1,5 @@
 import requests
 import logging
-from urllib.parse import quote
 from collections import Counter
 import sys
 import os
@@ -11,7 +10,9 @@ logger = logging.getLogger(__name__)
 
 def search_naver_blog(query, display=10):
     url = "https://openapi.naver.com/v1/search/blog.json"
-    params = {"query": quote(query), "display": display, "sort": "date"}
+    # requests가 params를 자동 URL 인코딩하므로 quote()를 또 적용하면 이중 인코딩되어
+    # Naver가 검색어를 못 읽고 쿼리와 무관한 결과를 반환하던 원인 (2026-07-22 발견, news_collector.py와 동일 버그)
+    params = {"query": query, "display": display, "sort": "date"}
     headers = {
         "X-Naver-Client-Id": NAVER_CLIENT_ID,
         "X-Naver-Client-Secret": NAVER_CLIENT_SECRET
