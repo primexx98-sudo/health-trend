@@ -291,7 +291,7 @@ def generate_html(naver_data, google_data, sns_data, news_data, rising_data, ove
     </div>
   </div>
   <div class="card mb-3">
-    <div class="card-header"><span class="section-icon">🛒</span>이커머스 판매순위 TOP3</div>
+    <div class="card-header"><span class="section-icon">🛒</span>이커머스 판매순위 TOP10</div>
     <div class="card-body p-2">
       <div class="row">
         {ecommerce_cols if ecommerce_cols else no_data}

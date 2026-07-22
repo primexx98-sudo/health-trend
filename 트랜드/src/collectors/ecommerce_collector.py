@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 RAW_BASE = "https://raw.githubusercontent.com/primexx98-sudo/online-mall-ranking/master/data/daily"
 PLATFORMS = ["카카오선물하기", "다이소몰", "올리브영"]
-TOP_N = 3
+TOP_N = 10
 
 
 def _fetch_workbook():
