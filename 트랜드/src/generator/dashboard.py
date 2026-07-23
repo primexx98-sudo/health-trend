@@ -202,18 +202,23 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
 
     # ── 오늘의 요약 박스 (2026-07-22 신설 — 기존 "오늘의 급상승 키워드" 배너 대체) ──
     def _ecommerce_highlights():
+        # 2026-07-23: "🆕 [올리브영] 상품명"처럼 기호 위주로 압축된 표기 대신,
+        # 무슨 일이 있었는지 문장으로 풀어서 한눈에 읽히게 함
         lines = []
         for key, label in _ecommerce_platforms:
+            platform = label.split()[-1]
             for it in ecommerce_data.get(key, []):
                 badge = it.get("badge")
                 if badge == "new":
-                    lines.append((0, f'<div class="summary-line">🆕 <b>[{label.split()[-1]}]</b> {it["name"]}</div>'))
+                    lines.append((0, f'<div class="summary-line">🆕 {platform}에 <b>{it["name"]}</b> 신규 진입</div>'))
                 elif badge and badge.startswith("up:") and int(badge.split(":")[1]) >= 3:
-                    lines.append((int(badge.split(":")[1]), f'<div class="summary-line">▲{badge.split(":")[1]} <b>[{label.split()[-1]}]</b> {it["name"]}</div>'))
+                    diff = int(badge.split(":")[1])
+                    lines.append((diff, f'<div class="summary-line">▲ {platform} <b>{it["name"]}</b> 순위 {diff}단계 상승</div>'))
         lines.sort(key=lambda x: -x[0])
         return "".join(html for _, html in lines[:5])
 
     def _naver_top_movers():
+        # 2026-07-23: "▲5 키워드"처럼 기호+숫자만 있던 표기를 문장으로 풀어서 표시
         movers = []
         for i, d in enumerate(naver_data[:15]):
             prev = _prev_rank.get(d["keyword"])
@@ -226,7 +231,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
         if not movers:
             return no_data
         return "".join(
-            f'<div class="summary-line">▲{diff} {kw}</div>' for diff, kw in movers[:3]
+            f'<div class="summary-line">▲ <b>{kw}</b> 검색 순위 {diff}단계 상승</div>' for diff, kw in movers[:3]
         )
 
     ecommerce_highlights_html = _ecommerce_highlights() or no_data
