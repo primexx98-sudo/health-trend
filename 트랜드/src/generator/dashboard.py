@@ -237,8 +237,20 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     ) or no_data
 
     law_summary = law_summary or {}
-    _law_text = law_summary.get("weekly_summary") or law_summary.get("summary") or ""
-    law_summary_html = f'<div class="summary-line">{_law_text}</div>' if _law_text else no_data
+    _law_items = law_summary.get("items") or []
+    _law_top_item = _law_items[0] if _law_items else {}
+    _law_key_points = _law_top_item.get("key_points") or []
+    if _law_key_points:
+        # 2026-07-23: 주간 통합 요약(문장형) 대신, 가장 최근 법령 항목의 실제
+        # 핵심내용(①②③, FOODLAW-MONITORING이 이미 생성해둔 값을 그대로 재사용 —
+        # 여기서 추가 AI 호출은 하지 않음)을 그대로 보여주는 방식으로 변경
+        law_summary_html = (
+            f'<div class="summary-line law-item-title">{_law_top_item.get("title", "")}</div>'
+            + "".join(f'<div class="summary-line law-kp-line">{pt}</div>' for pt in _law_key_points[:3])
+        )
+    else:
+        _law_text = law_summary.get("weekly_summary") or law_summary.get("summary") or ""
+        law_summary_html = f'<div class="summary-line">{_law_text}</div>' if _law_text else no_data
     law_label = law_summary.get("label", "")
 
     summary_box = f"""
@@ -379,6 +391,8 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .summary-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }}
   .summary-label {{ font-size: 0.78rem; font-weight: 600; color: var(--muted-strong); margin-bottom: 6px; }}
   .summary-line {{ font-size: 0.85rem; padding: 3px 0; color: var(--body-text); }}
+  .law-item-title {{ font-weight: 600; font-size: 0.8rem; color: var(--muted-strong); padding-bottom: 5px; line-height: 1.4; }}
+  .law-kp-line {{ font-size: 0.8rem; line-height: 1.5; padding: 2px 0; }}
   .theme-toggle {{
     background: var(--surface-elevated); border: 1px solid var(--hairline);
     color: var(--body-text); height: 28px; padding: 0 11px; border-radius: 14px;
