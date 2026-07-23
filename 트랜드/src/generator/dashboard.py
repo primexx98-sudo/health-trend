@@ -184,6 +184,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
 
     ecommerce_cols = "".join(_ecommerce_col(key, label) for key, label in _ecommerce_platforms)
     ecommerce_date = ecommerce_data.get("date", "")
+    ecommerce_is_stale = bool(ecommerce_date) and ecommerce_date != datetime.now().strftime("%Y-%m-%d")
 
     # ── 오늘의 요약 박스 (2026-07-22 신설 — 기존 "오늘의 급상승 키워드" 배너 대체) ──
     def _ecommerce_highlights():
@@ -385,12 +386,12 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     </div>
   </div>
   <div class="card mb-3">
-    <div class="card-header"><span class="section-icon">🛒</span>이커머스 판매순위 TOP10</div>
+    <div class="card-header"><span class="section-icon">🛒</span>이커머스 판매순위 TOP10{' (전일 기준)' if ecommerce_is_stale else ''}</div>
     <div class="card-body p-2">
       <div class="row">
         {ecommerce_cols if ecommerce_cols else no_data}
       </div>
-      <div class="card-source">출처: 올리브영·다이소몰·카카오 선물하기 판매순위 크롤러 (별도 시장조사 프로젝트, 자동 수집){f" · 데이터 기준일 {ecommerce_date}" if ecommerce_date else ""} · NEW=신규 진입, ▲▼=전일 대비 순위 변동</div>
+      <div class="card-source">출처: 올리브영·다이소몰·카카오 선물하기 판매순위 크롤러 (별도 시장조사 프로젝트, 자동 수집){f" · {ecommerce_date} 기준(전일자 랭킹 — 각 몰의 당일 랭킹은 오전 10시경 갱신되어 반영 못 함)" if ecommerce_is_stale else f" · {ecommerce_date} 기준" if ecommerce_date else ""} · NEW=신규 진입, ▲▼=전일 대비 순위 변동</div>
     </div>
   </div>
   <div class="row">
