@@ -2,7 +2,7 @@ name: 건강기능식품 트랜드 수집
 
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '13 0 * * *'  # 00:13 UTC = 09:13 KST (정각은 큐잉 지연이 심해 13분으로 변경)
   workflow_dispatch:
 
 permissions:
