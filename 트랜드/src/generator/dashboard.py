@@ -23,6 +23,20 @@ _NAV_JS = """\
     })
     .catch(function(){});
 })();
+function applyThemeIcon(){
+  var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  var icon = document.getElementById('themeToggleIcon');
+  var label = document.getElementById('themeToggleLabel');
+  if (icon) icon.textContent = isLight ? '☀️' : '🌙';
+  if (label) label.textContent = isLight ? '다크 모드' : '라이트 모드';
+}
+function toggleTheme(){
+  var cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  var next = cur === 'light' ? 'dark' : 'light';
+  localStorage.setItem('theme', next);
+  location.reload();
+}
+applyThemeIcon();
 </script>"""
 
 
@@ -152,7 +166,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
             "new Chart(ctx2, {\n"
             "  type: 'line',\n"
             f"  data: {{ labels: {trend_labels_json}, datasets: {trend_datasets_json} }},\n"
-            "  options: { responsive: true, scales: { y: { beginAtZero: true, grid: { color: '#2b3139' } }, x: { grid: { color: '#2b3139' } } }, plugins: { legend: { labels: { color: '#eaecef' } } } }\n"
+            "  options: { responsive: true, scales: { y: { beginAtZero: true, grid: { color: _chartGrid } }, x: { grid: { color: _chartGrid } } }, plugins: { legend: { labels: { color: _rootStyle.getPropertyValue('--body-text').trim() || '#eaecef' } } } }\n"
             "});"
         )
 
@@ -267,6 +281,15 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script>
+  // 저장된 테마를 CSS 적용 전에 먼저 읽어 첫 렌더 깜빡임 방지
+  (function() {{
+    var saved = localStorage.getItem('theme');
+    if (saved === 'light' || saved === 'dark') {{
+      document.documentElement.setAttribute('data-theme', saved);
+    }}
+  }})();
+</script>
 <style>
   :root {{
     --canvas: #0b0e11;
@@ -277,18 +300,41 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     --muted: #707a8a;
     --muted-strong: #929aa5;
     --primary: #fcd535;
+    --primary-text: #fcd535;
     --primary-active: #f0b90b;
     --up: #0ecb81;
     --down: #f6465d;
     --info: #3b82f6;
     --turquoise: #2dbdb6;
+    --rising-bg: #3a3a1f;
+    --chart-grid: #2b3139;
+    --chart-text: #929aa5;
+  }}
+  :root[data-theme="light"] {{
+    --canvas: #f7f8fa;
+    --surface: #ffffff;
+    --surface-elevated: #f0f2f5;
+    --hairline: #e6e8eb;
+    --body-text: #1e2329;
+    --muted: #76808f;
+    --muted-strong: #4b5563;
+    --primary: #fcd535;
+    --primary-text: #9a7300;
+    --primary-active: #b8860b;
+    --up: #0a9f68;
+    --down: #d63447;
+    --info: #2563eb;
+    --turquoise: #0f8f88;
+    --rising-bg: #fff3cd;
+    --chart-grid: #e6e8eb;
+    --chart-text: #4b5563;
   }}
   * {{ box-sizing: border-box; }}
   body {{ background: var(--canvas); color: var(--body-text); font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }}
   .mono {{ font-family: 'JetBrains Mono', monospace; }}
   .header {{ background: var(--canvas); border-bottom: 1px solid var(--hairline); color: var(--body-text); padding: 20px 30px; }}
   .header h1 {{ font-size: 1.5rem; font-weight: 700; margin: 0; }}
-  .header h1 .brand-accent {{ color: var(--primary); }}
+  .header h1 .brand-accent {{ color: var(--primary-text); }}
   .header .date {{ opacity: 0.7; font-size: 0.9rem; color: var(--muted-strong); }}
   .card {{ background: var(--surface); border: none; border-radius: 12px; box-shadow: none; margin-bottom: 20px; }}
   .card-header {{ background: transparent; color: var(--body-text); border-bottom: 1px solid var(--hairline); border-radius: 12px 12px 0 0 !important; font-weight: 600; font-size: 1rem; padding: 14px 18px; }}
@@ -296,7 +342,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .card-header.regulatory {{ border-bottom-color: var(--turquoise); }}
   .rank {{ width: 32px; color: var(--muted); font-weight: 700; font-family: 'JetBrains Mono', monospace; }}
   .rank-badge {{ font-size: 0.72rem; font-weight: 700; margin-left: 4px; font-family: 'JetBrains Mono', monospace; }}
-  .badge-new {{ color: var(--primary); }}
+  .badge-new {{ color: var(--primary-text); }}
   .badge-up {{ color: var(--up); }}
   .badge-down {{ color: var(--down); }}
   .badge-same {{ color: var(--muted); }}
@@ -306,11 +352,11 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   tr:hover {{ background: var(--surface-elevated); }}
   .tag {{ display: inline-block; background: var(--surface-elevated); color: var(--body-text); border-radius: 20px; padding: 4px 12px; margin: 4px; cursor: default; }}
   .tag small {{ color: var(--muted-strong); font-family: 'JetBrains Mono', monospace; }}
-  .rising-tag {{ display: inline-block; background: #3a3a1f; color: var(--primary); border-radius: 8px; padding: 6px 14px; margin: 4px; font-weight: 600; font-size: 0.9rem; }}
+  .rising-tag {{ display: inline-block; background: var(--rising-bg); color: var(--primary-text); border-radius: 8px; padding: 6px 14px; margin: 4px; font-weight: 600; font-size: 0.9rem; }}
   .news-item {{ padding: 7px 0; border-bottom: 1px solid var(--hairline); }}
   .news-item:last-child {{ border-bottom: none; }}
   .news-item a {{ color: var(--body-text); text-decoration: none; font-size: 0.87rem; line-height: 1.4; }}
-  .news-item a:hover {{ color: var(--primary); text-decoration: underline; }}
+  .news-item a:hover {{ color: var(--primary-text); text-decoration: underline; }}
   .news-date {{ display: block; color: var(--muted); font-size: 0.76rem; margin-top: 2px; }}
   .news-source {{ color: var(--muted); }}
   .section-icon {{ margin-right: 6px; }}
@@ -327,12 +373,19 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .ecom-top {{ display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }}
   .ecom-cat {{ font-size: 0.68rem; background: rgba(45,189,182,0.15); color: var(--turquoise); border-radius: 8px; padding: 1px 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }}
   .ecom-name {{ display: block; color: var(--body-text); text-decoration: none; font-size: 0.85rem; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }}
-  .ecom-name:hover {{ color: var(--primary); }}
-  .ecom-price {{ font-size: 0.85rem; color: var(--primary); font-weight: 700; margin-top: 2px; font-family: 'JetBrains Mono', monospace; }}
+  .ecom-name:hover {{ color: var(--primary-text); }}
+  .ecom-price {{ font-size: 0.85rem; color: var(--primary-text); font-weight: 700; margin-top: 2px; font-family: 'JetBrains Mono', monospace; }}
   .summary-card {{ border: 1px solid var(--primary); }}
   .summary-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }}
   .summary-label {{ font-size: 0.78rem; font-weight: 600; color: var(--muted-strong); margin-bottom: 6px; }}
   .summary-line {{ font-size: 0.85rem; padding: 3px 0; color: var(--body-text); }}
+  .theme-toggle {{
+    background: var(--surface-elevated); border: 1px solid var(--hairline);
+    color: var(--body-text); height: 28px; padding: 0 11px; border-radius: 14px;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.76rem; font-weight: 600; white-space: nowrap;
+  }}
+  .theme-toggle:hover {{ background: var(--hairline); }}
   @media (max-width: 576px) {{
     .header {{ padding: 14px 16px; }}
     .header h1 {{ font-size: 1.2rem; }}
@@ -349,7 +402,10 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
 <body>
 <div class="header mb-4">
   <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <h1 class="mb-0"><span class="brand-accent">●</span> 건강기능식품 트랜드 대시보드</h1>
+    <div class="d-flex align-items-center gap-2">
+      <h1 class="mb-0"><span class="brand-accent">●</span> 건강기능식품 트랜드 대시보드</h1>
+      <button class="theme-toggle" onclick="toggleTheme()" title="라이트/다크 모드 전환"><span id="themeToggleIcon">🌙</span><span id="themeToggleLabel">라이트 모드</span></button>
+    </div>
     <select id="date-select" class="date-select" title="과거 날짜 조회"></select>
   </div>
   <div class="date mt-1">{today} &nbsp;|&nbsp; 매일 오전 9시 자동 업데이트</div>
@@ -436,8 +492,13 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   </div>
 </div>
 <script>
-Chart.defaults.color = '#929aa5';
-Chart.defaults.borderColor = '#2b3139';
+// 현재 테마(라이트/다크)의 실제 색상값을 읽어와 Chart.js에 적용 — 하드코딩하면
+// 라이트 모드에서 다크 전용 색(밝은 회색 텍스트 등)이 그대로 남아 안 보이게 됨
+const _rootStyle = getComputedStyle(document.documentElement);
+const _chartText = _rootStyle.getPropertyValue('--chart-text').trim() || '#929aa5';
+const _chartGrid = _rootStyle.getPropertyValue('--chart-grid').trim() || '#2b3139';
+Chart.defaults.color = _chartText;
+Chart.defaults.borderColor = _chartGrid;
 const ctx = document.getElementById('trendChart').getContext('2d');
 new Chart(ctx, {{
   type: 'bar',
