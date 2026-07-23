@@ -194,7 +194,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
             for it in items
         )
         body = rows if rows else no_data
-        return f'<div class="col-md-4"><div class="fw-bold mb-1">{label}</div>{body}</div>'
+        return f'<div class="col-md-4"><div class="fw-bold mb-1 ecom-platform-label">{label}</div>{body}</div>'
 
     ecommerce_cols = "".join(_ecommerce_col(key, label) for key, label in _ecommerce_platforms)
     ecommerce_date = ecommerce_data.get("date", "")
@@ -392,6 +392,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .ecom-name {{ display: block; color: var(--body-text); text-decoration: none; font-size: 0.85rem; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }}
   .ecom-name:hover {{ color: var(--primary-text); }}
   .ecom-price {{ font-size: 0.85rem; color: var(--primary-text); font-weight: 700; margin-top: 2px; font-family: 'JetBrains Mono', monospace; }}
+  .ecom-platform-label {{ color: var(--body-text); }}
   .summary-card {{ border: 1px solid var(--primary); }}
   .summary-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }}
   .summary-label {{ font-size: 0.78rem; font-weight: 600; color: var(--muted-strong); margin-bottom: 6px; }}
