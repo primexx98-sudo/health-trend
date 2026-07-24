@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>건강기능식품 트랜드 - 2026년 07월 24일 (Fri)</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <script>
@@ -34,8 +33,6 @@
     --info: #3b82f6;
     --turquoise: #2dbdb6;
     --rising-bg: #3a3a1f;
-    --chart-grid: #2b3139;
-    --chart-text: #929aa5;
   }
   :root[data-theme="light"] {
     --canvas: #f7f8fa;
@@ -53,8 +50,6 @@
     --info: #2563eb;
     --turquoise: #0f8f88;
     --rising-bg: #fff3cd;
-    --chart-grid: #e6e8eb;
-    --chart-text: #4b5563;
   }
   * { box-sizing: border-box; }
   body { background: var(--canvas); color: var(--body-text); font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -167,7 +162,7 @@
           <div class="summary-line">🔬 식품·바이오 혁신 성과 잇따라…hy 연구역량 인정·서울우유 기능성 그...</div><div class="summary-line">🔬 이순신 경영 실천하는 한국콜마···자립준비청년 지원 5년째</div>
         </div>
       </div>
-      <div class="card-source">급상승: Google Trends(국내 KR) · 법령: 식품법령모니터 연동(주간) · 이커머스: 전일 대비 · 검색급상승/연구: 네이버 데이터랩·뉴스 API</div>
+      <div class="card-source">급상승: 네이버 데이터랩(전일 대비 증가폭) · 법령: 식품법령모니터 연동(주간) · 이커머스: 전일 대비 · 검색급상승/연구: 네이버 데이터랩·뉴스 API</div>
     </div>
   </div>
   <div class="row">
@@ -184,7 +179,7 @@
       <div class="card">
         <div class="card-header"><span class="section-icon">💬</span>SNS 화제 키워드</div>
         <div class="card-body">
-          <span class="tag" style="font-size:22px">#영양제 <small>130</small></span><span class="tag" style="font-size:22px">#비타민 <small>116</small></span><span class="tag" style="font-size:22px">#항산화 <small>47</small></span><span class="tag" style="font-size:22px">#혈당 <small>45</small></span><span class="tag" style="font-size:22px">#건강기능식품 <small>43</small></span><span class="tag" style="font-size:22px">#오메가3 <small>39</small></span><span class="tag" style="font-size:22px">#마그네슘 <small>36</small></span><span class="tag" style="font-size:22px">#아연 <small>34</small></span><span class="tag" style="font-size:22px">#칼슘 <small>31</small></span><span class="tag" style="font-size:22px">#유산균 <small>30</small></span><span class="tag" style="font-size:22px">#면역력 <small>29</small></span><span class="tag" style="font-size:22px">#콜라겐 <small>27</small></span><span class="tag" style="font-size:22px">#보충제 <small>27</small></span><span class="tag" style="font-size:22px">#혈압 <small>27</small></span><span class="tag" style="font-size:22px">#엽산 <small>26</small></span><span class="tag" style="font-size:22px">#테아닌 <small>24</small></span><span class="tag" style="font-size:22px">#NMN <small>24</small></span><span class="tag" style="font-size:22px">#콜레스테롤 <small>22</small></span><span class="tag" style="font-size:22px">#기능성 원료 <small>22</small></span><span class="tag" style="font-size:22px">#프로바이오틱스 <small>21</small></span>
+          <span class="tag" style="font-size:22px">#비타민 <small>116</small></span><span class="tag" style="font-size:22px">#영양제 <small>102</small></span><span class="tag" style="font-size:22px">#혈당 <small>47</small></span><span class="tag" style="font-size:22px">#항산화 <small>44</small></span><span class="tag" style="font-size:22px">#마그네슘 <small>42</small></span><span class="tag" style="font-size:22px">#오메가3 <small>40</small></span><span class="tag" style="font-size:22px">#건강기능식품 <small>39</small></span><span class="tag" style="font-size:22px">#면역력 <small>37</small></span><span class="tag" style="font-size:22px">#NMN <small>36</small></span><span class="tag" style="font-size:22px">#칼슘 <small>32</small></span><span class="tag" style="font-size:22px">#루테인 <small>32</small></span><span class="tag" style="font-size:22px">#보충제 <small>31</small></span><span class="tag" style="font-size:22px">#유산균 <small>29</small></span><span class="tag" style="font-size:22px">#아연 <small>29</small></span><span class="tag" style="font-size:22px">#콜라겐 <small>27</small></span><span class="tag" style="font-size:22px">#체지방 <small>25</small></span><span class="tag" style="font-size:22px">#철분 <small>22</small></span><span class="tag" style="font-size:22px">#피로회복 <small>22</small></span><span class="tag" style="font-size:22px">#기능성 원료 <small>22</small></span><span class="tag" style="font-size:22px">#혈압 <small>21</small></span>
           <div class="card-source">출처: 네이버 블로그 검색 · 숫자 = 해당 키워드 직접 검색 결과 수 + 다른 키워드 검색 결과에 함께 언급된 횟수 (실제 게시글 총량이 아닌 언급 빈도 지수)</div>
         </div>
       </div>
@@ -193,7 +188,7 @@
       <div class="card">
         <div class="card-header"><span class="section-icon">📰</span>국내 뉴스</div>
         <div class="card-body p-2">
-          <div class="news-item"><a href="https://health.chosun.com/site/data/html_dir/2026/07/23/2026072301982.html" target="_blank">간수치 나쁜데, 종합비타민 먹어도 될까?</a><span class="news-date">네이버뉴스 · Fri, 24 Jul 2026</span></div><div class="news-item"><a href="https://www.news1.kr/bio/healthcare/6237284" target="_blank">"수면 영양제인 줄 알고 해외직구…알고 보니 반입 금지, 전문약"</a><span class="news-date">네이버뉴스 · Thu, 23 Jul 2026</span></div><div class="news-item"><a href="https://www.eroun.net/news/articleView.html?idxno=86064" target="_blank">"종합비타민이 식사를 대신할 수 있을까"...AI 건강정보, 전문가가 직접...</a><span class="news-date">네이버뉴스 · Thu, 23 Jul 2026</span></div><div class="news-item"><a href="https://www.wikitree.co.kr/articles/1147962" target="_blank">일주일 분량이 1만원 훌쩍 넘는데... 이곳에 가면 '100% 공짜'</a><span class="news-date">네이버뉴스 · Thu, 23 Jul 2026</span></div><div class="news-item"><a href="https://www.slist.kr/news/articleView.html?idxno=753915" target="_blank">[F&amp;B] 대상, 레드닷 어워드 2관왕·듀오락, 유산균 수출 국내 1위 外</a><span class="news-date">네이버뉴스 · Fri, 24 Jul 2026</span></div><div class="news-item"><a href="https://www.mhns.co.kr/news/articleView.html?idxno=754346" target="_blank">녹턱스, 밤 시간 생체 리듬 관리 돕는 나이트 케어 신제품 국내 출시</a><span class="news-date">네이버뉴스 · Fri, 24 Jul 2026</span></div><div class="news-item"><a href="https://www.asiatoday.co.kr/kn/view.php?key=20260724010008791" target="_blank">"많이보다 제대로"…hy '50년 균주' 자산이 만드는 K-프로바이오틱스</a><span class="news-date">네이버뉴스 · Fri, 24 Jul 2026</span></div><div class="news-item"><a href="https://biz.chosun.com/science-chosun/bio/2026/07/24/IBQPQMOAANGBTMOOWDF73444LY/?utm_source=naver&utm_medium=original&utm_campaign=biz" target="_blank">건기식 키우는 제약사들…한미사이언스, MZ 공략 승부수</a><span class="news-date">네이버뉴스 · Fri, 24 Jul 2026</span></div>
+          <div class="news-item"><a href="https://www.yakup.com/news/index.html?mode=view&cat=12&nid=330195" target="_blank">프리솔라,약사상담 데이터 2만건 바탕 '임신·수유기 영양제 선택 기준...</a><span class="news-date">네이버뉴스 · Fri, 24 Jul 2026</span></div><div class="news-item"><a href="https://health.chosun.com/site/data/html_dir/2026/07/23/2026072301982.html" target="_blank">간수치 나쁜데, 종합비타민 먹어도 될까?</a><span class="news-date">네이버뉴스 · Fri, 24 Jul 2026</span></div><div class="news-item"><a href="https://www.news1.kr/bio/healthcare/6237284" target="_blank">"수면 영양제인 줄 알고 해외직구…알고 보니 반입 금지, 전문약"</a><span class="news-date">네이버뉴스 · Thu, 23 Jul 2026</span></div><div class="news-item"><a href="https://www.eroun.net/news/articleView.html?idxno=86064" target="_blank">"종합비타민이 식사를 대신할 수 있을까"...AI 건강정보, 전문가가 직접...</a><span class="news-date">네이버뉴스 · Thu, 23 Jul 2026</span></div><div class="news-item"><a href="https://www.wikitree.co.kr/articles/1147962" target="_blank">일주일 분량이 1만원 훌쩍 넘는데... 이곳에 가면 '100% 공짜'</a><span class="news-date">네이버뉴스 · Thu, 23 Jul 2026</span></div><div class="news-item"><a href="https://www.news1.kr/industry/general-industry/6237951" target="_blank">"양치 싫어하는 반려동물도 '냠냠'"…닥터헤리엇, '오랄케어' 출시</a><span class="news-date">네이버뉴스 · Fri, 24 Jul 2026</span></div><div class="news-item"><a href="https://www.slist.kr/news/articleView.html?idxno=753915" target="_blank">[F&amp;B] 대상, 레드닷 어워드 2관왕·듀오락, 유산균 수출 국내 1위 外</a><span class="news-date">네이버뉴스 · Fri, 24 Jul 2026</span></div><div class="news-item"><a href="https://www.mhns.co.kr/news/articleView.html?idxno=754346" target="_blank">녹턱스, 밤 시간 생체 리듬 관리 돕는 나이트 케어 신제품 국내 출시</a><span class="news-date">네이버뉴스 · Fri, 24 Jul 2026</span></div>
           <div class="card-source">출처: 연합뉴스·헬스조선·식품음료신문·히트뉴스 RSS · 네이버 뉴스 API</div>
         </div>
       </div>
@@ -216,7 +211,7 @@
           <span class="section-label label-research">Research</span>
         </div>
         <div class="card-body p-2">
-          <div class="news-item"><a href="https://www.newstnt.com/news/articleView.html?idxno=711125" target="_blank">🔬 식품·바이오 혁신 성과 잇따라…hy 연구역량 인정·서울우유 기능성 그...</a><span class="news-date">네이버뉴스 · Wed, 22 Jul 2026</span></div><div class="news-item"><a href="https://www.smartbizn.com/news/articleView.html?idxno=148567" target="_blank">🔬 이순신 경영 실천하는 한국콜마···자립준비청년 지원 5년째</a><span class="news-date">네이버뉴스 · Tue, 14 Jul 2026</span></div><div class="news-item"><a href="https://jhealthmedia.joins.com/news/articleView.html?idxno=32951" target="_blank">🔬 무더위로 인한 수면 부족, 항산화 관리로 건강 챙겨야</a><span class="news-date">네이버뉴스 · Mon, 13 Jul 2026</span></div><div class="news-item"><a href="https://www.yakup.com/news/index.html?mode=view&cat=12&nid=329671" target="_blank">🔬 홍삼과 아스피린은 궁합이 안 맞는다</a><span class="news-date">네이버뉴스 · Fri, 10 Jul 2026</span></div><div class="news-item"><a href="https://www.businesspost.co.kr/BP?command=article_view&num=442009" target="_blank">🔬 hy 개발한 프로바이오틱스 'HY7715' 관련 연구논문, SCI급 국제학술지 게...</a><span class="news-date">네이버뉴스 · Thu, 09 Jul 2026</span></div><div class="news-item"><a href="https://www.newsis.com/view/NISX20260708_0003700323" target="_blank">🔬 국산 잡곡 '황금비율' 통했다…매출 2배·제품화 본격화</a><span class="news-date">네이버뉴스 · Wed, 08 Jul 2026</span></div><div class="news-item"><a href="https://www.seoul.co.kr/news/economy/2026/07/08/20260708500037?wlog_tag3=naver" target="_blank">🔬 바이오메라, 글로벌 유산균 전문기업 IFF와 영유아 부모 대상 ‘HOWARU® ...</a><span class="news-date">네이버뉴스 · Wed, 08 Jul 2026</span></div><div class="news-item"><a href="http://www.doctorstimes.com/news/articleView.html?idxno=239186" target="_blank">🔬 [제약업계 소식] 7월 23일</a><span class="news-date">네이버뉴스 · Thu, 23 Jul 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/07/260721000845.htm" target="_blank">🌐 천연 화합물은 그 원천에서 류마티스 관절염과 싸울 수 있습니다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Wed, 22 Jul 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/07/260718010200.htm" target="_blank">🌐 UCLA 과학자들은 백악질이 없는 미네랄 자외선 차단제를 개발했습니다.</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Sun, 19 Jul 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/07/260717033046.htm" target="_blank">🌐 안녕, 충치? 새로운 젤은 치아 법랑질을 다시 성장시킬 수 있습니다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Thu, 23 Jul 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/07/260716023605.htm" target="_blank">🌐 지중해식 식단은 심장과 뇌를 보호하는 작은 단백질을 활성화할 수 있습니다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Fri, 17 Jul 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/07/260708022206.htm" target="_blank">🌐 과학자들은 생쥐가 더 많이 먹고 지방을 줄이는 데 도움이 되는 장수 식단을 발견했습니다.</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Thu, 09 Jul 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/07/260707054114.htm" target="_blank">🌐 과학자들은 유익한 기생충이 없이는 살 수 없는 한 가지 영양소를 발견했습니다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Fri, 10 Jul 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/07/260719035927.htm" target="_blank">🌐 커피는 숨겨진 세포 스위치를 통해 신체가 스트레스와 노화와 싸우는 데 도움이 될 수 있습니다</a><span class="news-date news-source">[ScienceDaily — Nutrition] Sun, 19 Jul 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/07/260716023557.htm" target="_blank">🌐 더욱 건강한 글로벌 식단으로 농장의 배출량을 85%까지 줄일 수 있습니다.</a><span class="news-date news-source">[ScienceDaily — Nutrition] Thu, 23 Jul 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/07/260712011758.htm" target="_blank">🌐 건강한 젊은 비흡연자에게 폐암이 발생하는 이유는 무엇입니까?</a><span class="news-date news-source">[ScienceDaily — Nutrition] Mon, 13 Jul 2026</span></div>
+          <div class="news-item"><a href="https://www.newstnt.com/news/articleView.html?idxno=711125" target="_blank">🔬 식품·바이오 혁신 성과 잇따라…hy 연구역량 인정·서울우유 기능성 그...</a><span class="news-date">네이버뉴스 · Wed, 22 Jul 2026</span></div><div class="news-item"><a href="https://www.smartbizn.com/news/articleView.html?idxno=148567" target="_blank">🔬 이순신 경영 실천하는 한국콜마···자립준비청년 지원 5년째</a><span class="news-date">네이버뉴스 · Tue, 14 Jul 2026</span></div><div class="news-item"><a href="https://jhealthmedia.joins.com/news/articleView.html?idxno=32951" target="_blank">🔬 무더위로 인한 수면 부족, 항산화 관리로 건강 챙겨야</a><span class="news-date">네이버뉴스 · Mon, 13 Jul 2026</span></div><div class="news-item"><a href="https://www.yakup.com/news/index.html?mode=view&cat=12&nid=329671" target="_blank">🔬 홍삼과 아스피린은 궁합이 안 맞는다</a><span class="news-date">네이버뉴스 · Fri, 10 Jul 2026</span></div><div class="news-item"><a href="https://www.businesspost.co.kr/BP?command=article_view&num=442009" target="_blank">🔬 hy 개발한 프로바이오틱스 'HY7715' 관련 연구논문, SCI급 국제학술지 게...</a><span class="news-date">네이버뉴스 · Thu, 09 Jul 2026</span></div><div class="news-item"><a href="https://www.newsis.com/view/NISX20260708_0003700323" target="_blank">🔬 국산 잡곡 '황금비율' 통했다…매출 2배·제품화 본격화</a><span class="news-date">네이버뉴스 · Wed, 08 Jul 2026</span></div><div class="news-item"><a href="https://www.seoul.co.kr/news/economy/2026/07/08/20260708500037?wlog_tag3=naver" target="_blank">🔬 바이오메라, 글로벌 유산균 전문기업 IFF와 영유아 부모 대상 ‘HOWARU® ...</a><span class="news-date">네이버뉴스 · Wed, 08 Jul 2026</span></div><div class="news-item"><a href="http://www.doctorstimes.com/news/articleView.html?idxno=239186" target="_blank">🔬 [제약업계 소식] 7월 23일</a><span class="news-date">네이버뉴스 · Thu, 23 Jul 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/07/260721000845.htm" target="_blank">🌐 천연 화합물이 근원에서 류마티스 관절염과 싸울 수 있다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Wed, 22 Jul 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/07/260718010200.htm" target="_blank">🌐 UCLA 과학자들, 백탁 현상 없는 미네랄 선크림 개발</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Sun, 19 Jul 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/07/260717033046.htm" target="_blank">🌐 충치 안녕? 새로운 젤이 치아 법랑질을 재생할 수 있다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Thu, 23 Jul 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/07/260716023605.htm" target="_blank">🌐 지중해식 식단은 심장과 뇌를 보호하는 작은 단백질을 활성화할 수 있습니다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Fri, 17 Jul 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/07/260707054114.htm" target="_blank">🌐 과학자들은 기생충이 없이는 살 수 없는 유익한 한 가지 영양소를 발견했다</a><span class="news-date news-source">[ScienceDaily — Dietary Supplements] Fri, 10 Jul 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/07/260719035927.htm" target="_blank">🌐 커피는 숨겨진 세포 스위치를 통해 몸이 스트레스와 노화를 날씨는 데 도움을 줄 수 있습니다</a><span class="news-date news-source">[ScienceDaily — Nutrition] Sun, 19 Jul 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/07/260716023557.htm" target="_blank">🌐 더 건강한 세계 식단은 농업 배출을 85% 줄일 수 있다</a><span class="news-date news-source">[ScienceDaily — Nutrition] Thu, 23 Jul 2026</span></div><div class="news-item"><a href="https://www.sciencedaily.com/releases/2026/07/260712011758.htm" target="_blank">🌐 왜 건강한 젊은 비흡연자들이 폐암에 걸리고 있는가?</a><span class="news-date news-source">[ScienceDaily — Nutrition] Mon, 13 Jul 2026</span></div>
           <div class="card-source">출처: 네이버 뉴스 API (연구·임상 키워드 검색) · ScienceDaily RSS(🌐, 자동 번역)</div>
         </div>
       </div>
@@ -234,56 +229,7 @@
       </div>
     </div>
   </div>
-  <div class="card">
-    <div class="card-header"><span class="section-icon">📈</span>국내 Top 7 키워드 검색량 비교</div>
-    <div class="card-body">
-      <canvas id="trendChart" height="80"></canvas>
-      <div class="card-source">출처: 네이버 데이터랩 검색 트랜드 API (최근 7일 평균)</div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-header"><span class="section-icon">📉</span>최근 키워드 검색량 추이</div>
-    <div class="card-body">
-      <canvas id="trendHistoryChart" height="80"></canvas>
-      <div class="card-source">출처: 네이버 데이터랩 검색 트랜드 API (일별 스냅샷 누적, 최대 14일)</div>
-    </div>
-  </div>
 </div>
-<script>
-// 현재 테마(라이트/다크)의 실제 색상값을 읽어와 Chart.js에 적용 — 하드코딩하면
-// 라이트 모드에서 다크 전용 색(밝은 회색 텍스트 등)이 그대로 남아 안 보이게 됨
-const _rootStyle = getComputedStyle(document.documentElement);
-const _chartText = _rootStyle.getPropertyValue('--chart-text').trim() || '#929aa5';
-const _chartGrid = _rootStyle.getPropertyValue('--chart-grid').trim() || '#2b3139';
-Chart.defaults.color = _chartText;
-Chart.defaults.borderColor = _chartGrid;
-const ctx = document.getElementById('trendChart').getContext('2d');
-new Chart(ctx, {
-  type: 'bar',
-  data: {
-    labels: ["\uc624\uba54\uac003", "\ub9c8\uadf8\ub124\uc298", "\ud06c\ub808\uc544\ud2f4", "\uc720\uc0b0\uade0", "\uae00\ub8e8\ud0c0\uce58\uc628", "\ucf54\uc5d4\uc790\uc784Q10", "\ucf5c\ub77c\uac90"],
-    datasets: [{
-      label: '검색 지수',
-      data: [97.83437, 81.9616, 69.18735, 52.70703, 30.06361, 24.39826, 22.57129],
-      backgroundColor: 'rgba(252, 213, 53, 0.75)',
-      borderColor: '#fcd535',
-      borderWidth: 1,
-      borderRadius: 6
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: { y: { beginAtZero: true } }
-  }
-});
-const ctx2 = document.getElementById('trendHistoryChart').getContext('2d');
-new Chart(ctx2, {
-  type: 'line',
-  data: { labels: ["07/22", "07/23", "07/24"], datasets: [{"label": "\uc624\uba54\uac003", "data": [93.1371, 95.53149, 97.83437], "borderColor": "#fcd535", "backgroundColor": "transparent", "tension": 0.3, "spanGaps": true}, {"label": "\ub9c8\uadf8\ub124\uc298", "data": [89.16644, 93.39994, 81.9616], "borderColor": "#0ecb81", "backgroundColor": "transparent", "tension": 0.3, "spanGaps": true}, {"label": "\ud06c\ub808\uc544\ud2f4", "data": [100, 100, 69.18735], "borderColor": "#3b82f6", "backgroundColor": "transparent", "tension": 0.3, "spanGaps": true}, {"label": "\uc720\uc0b0\uade0", "data": [58.53286, 53.72883, 52.70703], "borderColor": "#f6465d", "backgroundColor": "transparent", "tension": 0.3, "spanGaps": true}, {"label": "\uae00\ub8e8\ud0c0\uce58\uc628", "data": [61.33699, 27.29324, 30.06361], "borderColor": "#2dbdb6", "backgroundColor": "transparent", "tension": 0.3, "spanGaps": true}] },
-  options: { responsive: true, scales: { y: { beginAtZero: true, grid: { color: _chartGrid } }, x: { grid: { color: _chartGrid } } }, plugins: { legend: { labels: { color: _rootStyle.getPropertyValue('--body-text').trim() || '#eaecef' } } } }
-});
-</script>
 <script>
 (function(){
   var sel = document.getElementById('date-select');
