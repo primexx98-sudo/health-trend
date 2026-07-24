@@ -6,8 +6,7 @@ from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import OUTPUT_DIR, LOG_DIR, NAVER_CLIENT_ID
-from collectors.naver_trends import get_top_keywords
-from collectors.google_trends import get_rising_keywords
+from collectors.naver_trends import get_top_keywords, get_rising_from_previous
 from collectors.sns_collector import get_sns_keywords
 from collectors.news_collector import collect_all_news
 from collectors.overseas_collector import get_overseas_news
@@ -150,11 +149,18 @@ def main():
     logger = logging.getLogger("main")
     logger.info("트랜드 수집 시작")
 
+    _repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    _committed_docs = os.path.join(_repo_root, "docs")
+    _committed_data_dir = os.path.join(_committed_docs, "data")
+    _today_str = datetime.now().strftime("%Y%m%d")
+    yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
+    naver_prev_data = load_naver_snapshot(_committed_data_dir, yesterday_str)
+
     print("[1/5] 국내 키워드 순위 수집 중...")
     naver_data = get_top_keywords() or [{"keyword": "데이터 없음", "ratio": 0}]
 
-    print("[2/5] 급상승 키워드 수집 중...")
-    rising_data = get_rising_keywords()
+    print("[2/5] 급상승 키워드 계산 중...")
+    rising_data = get_rising_from_previous(naver_data, naver_prev_data)
 
     print("[3/5] SNS 키워드 수집 중...")
     sns_data = get_sns_keywords()
@@ -168,8 +174,6 @@ def main():
     law_summary = get_law_weekly_summary()
 
     print("대시보드 생성 중...")
-    _repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    _committed_docs = os.path.join(_repo_root, "docs")
 
     # history.json: 커밋된 docs/ 백업 파일 + 오늘 날짜
     existing = sorted(
@@ -179,11 +183,6 @@ def main():
     )
 
     # 국내 인기순위 히스토리 — 커밋된 docs/data/의 스냅샷 기준 (이번 실행분 저장 전 상태)
-    _committed_data_dir = os.path.join(_committed_docs, "data")
-    _today_str = datetime.now().strftime("%Y%m%d")
-    yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
-    naver_prev_data = load_naver_snapshot(_committed_data_dir, yesterday_str)
-
     history_files = sorted(glob.glob(os.path.join(_committed_data_dir, "naver_????????.json")))[-14:]
     naver_history = []
     for fpath in history_files:

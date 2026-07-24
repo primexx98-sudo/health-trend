@@ -86,3 +86,25 @@ def get_top_keywords():
     results.sort(key=lambda x: x["ratio"], reverse=True)
     logger.info(f"네이버 키워드 {len(results)}개 수집 완료")
     return results
+
+
+def get_rising_from_previous(today_data, prev_data, top_n=8):
+    """전일 대비 검색량(ratio) 증가폭이 큰 키워드 추출 — 급상승 키워드 대체 산출식.
+
+    Google Trends(pytrends)가 2026-07-21부터 GitHub Actions IP에서 상시 429를 반환해
+    (글로벌 트랜드 폐지와 동일 원인) get_top_keywords()가 이미 수집한 국내 인기순위 20개의
+    전일 대비 증감만으로 계산 — 추가 API 호출 없이 naver_prev_data 스냅샷 재사용.
+    """
+    if not prev_data:
+        return []
+    prev_ratio = {d["keyword"]: d["ratio"] for d in prev_data}
+    rising = []
+    for d in today_data:
+        prev = prev_ratio.get(d["keyword"])
+        if prev is None:
+            continue
+        delta = d["ratio"] - prev
+        if delta > 0:
+            rising.append({"keyword": d["keyword"], "value": round(delta, 1)})
+    rising.sort(key=lambda r: r["value"], reverse=True)
+    return rising[:top_n]
