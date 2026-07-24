@@ -152,7 +152,6 @@ def main():
     _repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     _committed_docs = os.path.join(_repo_root, "docs")
     _committed_data_dir = os.path.join(_committed_docs, "data")
-    _today_str = datetime.now().strftime("%Y%m%d")
     yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
     naver_prev_data = load_naver_snapshot(_committed_data_dir, yesterday_str)
 
@@ -182,24 +181,13 @@ def main():
         reverse=True,
     )
 
-    # 국내 인기순위 히스토리 — 커밋된 docs/data/의 스냅샷 기준 (이번 실행분 저장 전 상태)
-    history_files = sorted(glob.glob(os.path.join(_committed_data_dir, "naver_????????.json")))[-14:]
-    naver_history = []
-    for fpath in history_files:
-        d = os.path.basename(fpath)[len("naver_"):-len(".json")]
-        if d == _today_str:
-            continue
-        data = load_naver_snapshot(_committed_data_dir, d)
-        if data:
-            naver_history.append({"date": d, "data": data})
-
     # 이커머스 순위 변동/신규진입 배지 — 전일 스냅샷과 비교
     ecommerce_prev_data = load_ecommerce_snapshot(_committed_data_dir, yesterday_str)
     ecommerce_data = attach_rank_changes(ecommerce_data, ecommerce_prev_data)
 
     html, date_str = generate_html(
         naver_data, sns_data, news_data, rising_data, overseas_data,
-        ecommerce_data=ecommerce_data, naver_prev_data=naver_prev_data, naver_history=naver_history,
+        ecommerce_data=ecommerce_data, naver_prev_data=naver_prev_data,
         law_summary=law_summary,
     )
 

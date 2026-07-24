@@ -1,6 +1,5 @@
 from datetime import datetime
 import os
-import json
 
 _NAV_JS = """\
 <script>
@@ -56,13 +55,11 @@ def _badge_html(badge):
     return ""
 
 
-def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=None, available_dates=None, ecommerce_data=None, naver_prev_data=None, naver_history=None, law_summary=None):
+def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=None, available_dates=None, ecommerce_data=None, naver_prev_data=None, law_summary=None):
     if overseas_data is None:
         overseas_data = []
     if ecommerce_data is None:
         ecommerce_data = {}
-    if naver_history is None:
-        naver_history = []
     today = datetime.now().strftime("%Y년 %m월 %d일 (%a)")
     today_file = datetime.now().strftime("%Y%m%d")
 
@@ -131,45 +128,6 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
         f'<span class="rising-tag">🔥 {r["keyword"]}</span>'
         for r in rising_data[:8]
     )
-    chart_labels = json.dumps([d["keyword"] for d in naver_data[:7]])
-    chart_values = json.dumps([d["ratio"] for d in naver_data[:7]])
-
-    # 최근 키워드 검색량 추이 — 저장된 일별 스냅샷 + 오늘 데이터를 이어붙여 라인차트 구성
-    _trend_points = list(naver_history) + [{"date": today_file, "data": naver_data}]
-    _trend_keywords = [d["keyword"] for d in naver_data[:5]]
-    _line_colors = ["#fcd535", "#0ecb81", "#3b82f6", "#f6465d", "#2dbdb6"]
-    show_trend_chart = len(_trend_points) >= 2
-
-    trend_script = ""
-    if show_trend_chart:
-        trend_labels_json = json.dumps([f'{p["date"][4:6]}/{p["date"][6:8]}' for p in _trend_points])
-
-        def _series_for(keyword):
-            return [
-                next((x["ratio"] for x in p["data"] if x["keyword"] == keyword), None)
-                for p in _trend_points
-            ]
-
-        trend_datasets_json = json.dumps([
-            {
-                "label": kw,
-                "data": _series_for(kw),
-                "borderColor": _line_colors[i % len(_line_colors)],
-                "backgroundColor": "transparent",
-                "tension": 0.3,
-                "spanGaps": True,
-            }
-            for i, kw in enumerate(_trend_keywords)
-        ])
-        trend_script = (
-            "const ctx2 = document.getElementById('trendHistoryChart').getContext('2d');\n"
-            "new Chart(ctx2, {\n"
-            "  type: 'line',\n"
-            f"  data: {{ labels: {trend_labels_json}, datasets: {trend_datasets_json} }},\n"
-            "  options: { responsive: true, scales: { y: { beginAtZero: true, grid: { color: _chartGrid } }, x: { grid: { color: _chartGrid } } }, plugins: { legend: { labels: { color: _rootStyle.getPropertyValue('--body-text').trim() || '#eaecef' } } } }\n"
-            "});"
-        )
-
     _ecommerce_platforms = [
         ("카카오선물하기", "🎁 카카오 선물하기"),
         ("다이소몰", "🏪 다이소몰"),
@@ -284,7 +242,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
           {latest_research_html}
         </div>
       </div>
-      <div class="card-source">급상승: Google Trends(국내 KR) · 법령: 식품법령모니터 연동(주간) · 이커머스: 전일 대비 · 검색급상승/연구: 네이버 데이터랩·뉴스 API</div>
+      <div class="card-source">급상승: 네이버 데이터랩(전일 대비 증가폭) · 법령: 식품법령모니터 연동(주간) · 이커머스: 전일 대비 · 검색급상승/연구: 네이버 데이터랩·뉴스 API</div>
     </div>
   </div>"""
 
@@ -295,7 +253,6 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>건강기능식품 트랜드 - {today}</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <script>
@@ -324,8 +281,6 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     --info: #3b82f6;
     --turquoise: #2dbdb6;
     --rising-bg: #3a3a1f;
-    --chart-grid: #2b3139;
-    --chart-text: #929aa5;
   }}
   :root[data-theme="light"] {{
     --canvas: #f7f8fa;
@@ -343,8 +298,6 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     --info: #2563eb;
     --turquoise: #0f8f88;
     --rising-bg: #fff3cd;
-    --chart-grid: #e6e8eb;
-    --chart-text: #4b5563;
   }}
   * {{ box-sizing: border-box; }}
   body {{ background: var(--canvas); color: var(--body-text); font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }}
@@ -496,51 +449,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
       </div>
     </div>
   </div>
-  <div class="card">
-    <div class="card-header"><span class="section-icon">📈</span>국내 Top 7 키워드 검색량 비교</div>
-    <div class="card-body">
-      <canvas id="trendChart" height="80"></canvas>
-      <div class="card-source">출처: 네이버 데이터랩 검색 트랜드 API (최근 7일 평균)</div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-header"><span class="section-icon">📉</span>최근 키워드 검색량 추이</div>
-    <div class="card-body">
-      {'<canvas id="trendHistoryChart" height="80"></canvas>' if show_trend_chart else '<span class="text-muted small">스냅샷이 2일 이상 쌓이면 추이가 표시됩니다</span>'}
-      <div class="card-source">출처: 네이버 데이터랩 검색 트랜드 API (일별 스냅샷 누적, 최대 14일)</div>
-    </div>
-  </div>
 </div>
-<script>
-// 현재 테마(라이트/다크)의 실제 색상값을 읽어와 Chart.js에 적용 — 하드코딩하면
-// 라이트 모드에서 다크 전용 색(밝은 회색 텍스트 등)이 그대로 남아 안 보이게 됨
-const _rootStyle = getComputedStyle(document.documentElement);
-const _chartText = _rootStyle.getPropertyValue('--chart-text').trim() || '#929aa5';
-const _chartGrid = _rootStyle.getPropertyValue('--chart-grid').trim() || '#2b3139';
-Chart.defaults.color = _chartText;
-Chart.defaults.borderColor = _chartGrid;
-const ctx = document.getElementById('trendChart').getContext('2d');
-new Chart(ctx, {{
-  type: 'bar',
-  data: {{
-    labels: {chart_labels},
-    datasets: [{{
-      label: '검색 지수',
-      data: {chart_values},
-      backgroundColor: 'rgba(252, 213, 53, 0.75)',
-      borderColor: '#fcd535',
-      borderWidth: 1,
-      borderRadius: 6
-    }}]
-  }},
-  options: {{
-    responsive: true,
-    plugins: {{ legend: {{ display: false }} }},
-    scales: {{ y: {{ beginAtZero: true }} }}
-  }}
-}});
-{trend_script}
-</script>
 {_NAV_JS}
 </body>
 </html>"""
