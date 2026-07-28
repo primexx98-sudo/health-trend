@@ -480,7 +480,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     font-size: 0.76rem; font-weight: 600; white-space: nowrap;
   }}
   .theme-toggle:hover {{ background: var(--hairline); }}
-  .tab-bar {{ display: flex; gap: 6px; padding: 0 30px; margin-top: 12px; }}
+  .tab-bar {{ display: flex; gap: 6px; }}
   .tab-btn {{
     background: transparent; border: none; border-bottom: 2px solid transparent;
     color: var(--muted-strong); padding: 8px 4px; font-size: 0.92rem; font-weight: 600;
@@ -509,14 +509,16 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
       <h1 class="mb-0"><span class="brand-accent">●</span> 건강기능식품 트랜드 대시보드</h1>
       <button class="theme-toggle" onclick="toggleTheme()" title="라이트/다크 모드 전환"><span id="themeToggleIcon">🌙</span><span id="themeToggleLabel">라이트 모드</span></button>
     </div>
-    <select id="date-select" class="date-select" title="과거 날짜 조회"></select>
+    <div class="d-flex align-items-center gap-3">
+      <div class="tab-bar">
+        <button class="tab-btn" data-tab="daily" onclick="switchTab('daily')">일간</button>
+        <button class="tab-btn" data-tab="weekly" onclick="switchTab('weekly')">주간</button>
+        <button class="tab-btn" data-tab="monthly" onclick="switchTab('monthly')">월간</button>
+      </div>
+      <select id="date-select" class="date-select" title="과거 날짜 조회"></select>
+    </div>
   </div>
   <div class="date mt-1">{today} &nbsp;|&nbsp; {update_time} 업데이트 (KST, 매일 자동 수집)</div>
-</div>
-<div class="tab-bar">
-  <button class="tab-btn" data-tab="daily" onclick="switchTab('daily')">일간</button>
-  <button class="tab-btn" data-tab="weekly" onclick="switchTab('weekly')">주간</button>
-  <button class="tab-btn" data-tab="monthly" onclick="switchTab('monthly')">월간</button>
 </div>
 <div id="tab-daily" class="tab-panel container-fluid px-4">
   {summary_box}
