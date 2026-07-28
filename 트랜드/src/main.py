@@ -112,6 +112,54 @@ def cleanup_old_snapshots(data_dir, keep_days=30):
     if removed:
         logging.getLogger("main").info(f"오래된 검색량 스냅샷 {removed}개 삭제")
 
+def save_digest_snapshot(data_dir, date_str, sns_data, news_data, rising_data, law_summary):
+    """뉴스/SNS/급상승 키워드/법령요약은 그동안 그날 HTML에만 반영되고 사라졌음 —
+    주간/월간 집계의 원본 재료로 쓰기 위해 구조화된 형태로 보존한다."""
+    import json as _json
+    os.makedirs(data_dir, exist_ok=True)
+    path = os.path.join(data_dir, f"digest_{date_str}.json")
+    payload = {
+        "date": date_str,
+        "sns_data": sns_data,
+        "news_data": news_data,
+        "rising_data": rising_data,
+        "law_summary": law_summary,
+    }
+    with open(path, "w", encoding="utf-8") as f:
+        _json.dump(payload, f, ensure_ascii=False)
+
+
+def cleanup_old_digests(data_dir, keep_days=35):
+    cutoff = datetime.now() - timedelta(days=keep_days)
+    removed = 0
+    for fpath in glob.glob(os.path.join(data_dir, "digest_????????.json")):
+        try:
+            date_str = os.path.basename(fpath)[len("digest_"):-len(".json")]
+            if datetime.strptime(date_str, "%Y%m%d") < cutoff:
+                os.remove(fpath)
+                removed += 1
+        except Exception:
+            pass
+    if removed:
+        logging.getLogger("main").info(f"오래된 digest 스냅샷 {removed}개 삭제")
+
+
+def load_latest_period_snapshot(period_dir, prefix):
+    """docs/data/weekly 또는 docs/data/monthly에서 파일명 기준 최신 집계 파일을 읽는다.
+    아직 한 번도 집계가 안 돌았으면 폴더/파일이 없을 수 있음 — None 반환."""
+    if not os.path.isdir(period_dir):
+        return None
+    files = sorted(glob.glob(os.path.join(period_dir, f"{prefix}_*.json")))
+    if not files:
+        return None
+    try:
+        import json as _json
+        with open(files[-1], "r", encoding="utf-8") as f:
+            return _json.load(f)
+    except Exception:
+        return None
+
+
 def load_ecommerce_snapshot(data_dir, date_str):
     path = os.path.join(data_dir, f"ecommerce_{date_str}.json")
     if not os.path.exists(path):
@@ -185,10 +233,15 @@ def main():
     ecommerce_prev_data = load_ecommerce_snapshot(_committed_data_dir, yesterday_str)
     ecommerce_data = attach_rank_changes(ecommerce_data, ecommerce_prev_data)
 
+    # 주간/월간 탭 — weekly.yml/monthly.yml이 각자 커밋해둔 최신 집계를 읽어 반영.
+    # 아직 한 번도 안 돌았으면 None → dashboard.py가 "축적 중" 빈 상태로 표시.
+    weekly_data = load_latest_period_snapshot(os.path.join(_committed_data_dir, "weekly"), "weekly")
+    monthly_data = load_latest_period_snapshot(os.path.join(_committed_data_dir, "monthly"), "monthly")
+
     html, date_str = generate_html(
         naver_data, sns_data, news_data, rising_data, overseas_data,
         ecommerce_data=ecommerce_data, naver_prev_data=naver_prev_data,
-        law_summary=law_summary,
+        law_summary=law_summary, weekly_data=weekly_data, monthly_data=monthly_data,
     )
 
     all_dates = ([date_str] + [d for d in existing if d != date_str])[:30]
@@ -226,6 +279,11 @@ def main():
         _snapshot_dir = os.path.join(OUTPUT_DIR, "data")
         save_ecommerce_snapshot(_snapshot_dir, date_str, ecommerce_data)
         cleanup_old_ecommerce_snapshots(_snapshot_dir)
+
+    # digest 스냅샷 저장 (주간/월간 집계 원본 재료 — 뉴스/SNS/급상승/법령요약)
+    _snapshot_dir = os.path.join(OUTPUT_DIR, "data")
+    save_digest_snapshot(_snapshot_dir, date_str, sns_data, news_data, rising_data, law_summary)
+    cleanup_old_digests(_snapshot_dir)
 
     logger.info(f"완료: {index_path}")
     print(f"완료! index.html 업데이트됨 (백업: dashboard_{date_str}.html)")

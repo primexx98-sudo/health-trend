@@ -1,5 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import os
+
+_KST = timezone(timedelta(hours=9))
 
 _NAV_JS = """\
 <script>
@@ -36,6 +38,20 @@ function toggleTheme(){
   location.reload();
 }
 applyThemeIcon();
+function switchTab(name){
+  ['daily','weekly','monthly'].forEach(function(n){
+    var panel = document.getElementById('tab-' + n);
+    if (panel) panel.hidden = (n !== name);
+    var btn = document.querySelector('.tab-btn[data-tab="' + n + '"]');
+    if (btn) btn.classList.toggle('active', n === name);
+  });
+  history.replaceState(null, '', '#' + name);
+}
+(function(){
+  var initial = (location.hash || '#daily').slice(1);
+  if (['daily','weekly','monthly'].indexOf(initial) === -1) initial = 'daily';
+  switchTab(initial);
+})();
 </script>"""
 
 
@@ -55,13 +71,114 @@ def _badge_html(badge):
     return ""
 
 
-def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=None, available_dates=None, ecommerce_data=None, naver_prev_data=None, law_summary=None):
+def _render_period_section(data, kind):
+    """주간/월간 탭 공용 렌더러. kind: "weekly" | "monthly" — 라벨/foodnews 블록 유무만 다름.
+    data는 aggregator/weekly.py, aggregator/monthly.py가 만든 JSON 그대로(없으면 None)."""
+    no_data = '<span class="text-muted small">데이터 수집 중...</span>'
+    empty_period = "주간" if kind == "weekly" else "월간"
+
+    if not data:
+        return f"""
+  <div class="card mb-3 summary-card">
+    <div class="card-header">📅 {empty_period} 요약</div>
+    <div class="card-body"><span class="text-muted small">{empty_period} 집계 데이터를 아직 축적 중입니다 — 매{"주" if kind == "weekly" else "월"} 자동 집계되며 시간이 지나면 채워집니다.</span></div>
+  </div>"""
+
+    label = data.get("period_label", "")
+    ai = data.get("ai_summary")
+    if ai and ai.get("summary"):
+        ai_html = (
+            f'<div class="summary-line">{ai["summary"]}</div>'
+            + "".join(f'<div class="summary-line law-kp-line">・ {pt}</div>' for pt in ai.get("key_points", []))
+        )
+    else:
+        ai_html = f'<span class="text-muted small">AI 요약을 생성하지 못했습니다(데이터 부족 또는 API 미설정) — 아래 집계 데이터는 정상 표시됩니다.</span>'
+
+    top_keywords = data.get("top_keywords", [])
+    keyword_rows = "".join(
+        f'<div class="summary-line">{i+1}. <b>{k["keyword"]}</b> <span class="text-muted small">(평균 {k["avg_ratio"]:.0f})</span></div>'
+        for i, k in enumerate(top_keywords[:10])
+    ) or no_data
+
+    news_highlights = data.get("news_highlights", [])
+    news_rows = "".join(
+        f'<div class="news-item"><a href="{n.get("link", "")}" target="_blank">[{n["category"]}] {n["title"]}</a></div>'
+        for n in news_highlights[:10]
+    ) or no_data
+
+    ecommerce_highlights = data.get("ecommerce_highlights", [])
+    ecommerce_rows = "".join(
+        f'<div class="summary-line">{e["platform"]} '
+        + ("🆕 신규진입: " if e["kind"] == "new" else "▲ 순위상승: ")
+        + f'<b>{e["name"]}</b></div>'
+        for e in ecommerce_highlights[:10]
+    ) or no_data
+
+    foodnews_block = ""
+    if kind == "monthly":
+        foodnews = data.get("foodnews") or {}
+        for section_label in ("건강기능식품", "신상품"):
+            items = foodnews.get(section_label, [])
+            rows = "".join(
+                f'<div class="news-item"><a href="{it.get("link", "")}" target="_blank">{it["title"]}</a>'
+                f'<span class="news-date">{it.get("date", "")}</span></div>'
+                for it in items[:8]
+            ) or no_data
+            foodnews_block += f"""
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><span class="section-icon">📰</span>식품저널 {section_label} ({len(items)}건)</div>
+        <div class="card-body p-2">{rows}</div>
+      </div>
+    </div>"""
+
+    days_collected = data.get("days_collected", 0)
+
+    foodnews_row = f'<div class="row">{foodnews_block}</div>' if foodnews_block else ""
+
+    return f"""
+  <div class="card mb-3 summary-card">
+    <div class="card-header">📅 {label} 요약</div>
+    <div class="card-body">
+      {ai_html}
+      <div class="card-source">집계 대상: {days_collected}일치 원본 데이터 · AI 요약: Claude API</div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header"><span class="section-icon">📊</span>{empty_period} 검색 상위 키워드</div>
+        <div class="card-body p-2">{keyword_rows}</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header"><span class="section-icon">📰</span>{empty_period} 주요 뉴스</div>
+        <div class="card-body p-2">{news_rows}</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header"><span class="section-icon">🛒</span>{empty_period} 이커머스 동향</div>
+        <div class="card-body p-2">{ecommerce_rows}</div>
+      </div>
+    </div>
+  </div>
+  {foodnews_row}"""
+
+
+def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=None, available_dates=None, ecommerce_data=None, naver_prev_data=None, law_summary=None, weekly_data=None, monthly_data=None):
     if overseas_data is None:
         overseas_data = []
     if ecommerce_data is None:
         ecommerce_data = {}
     today = datetime.now().strftime("%Y년 %m월 %d일 (%a)")
     today_file = datetime.now().strftime("%Y%m%d")
+    # GitHub Actions 러너는 UTC, 로컬 실행은 KST라 시스템 시각을 그대로 쓰면 표시가
+    # 오락가락함 — datetime.now(timezone.utc)로 절대 시각을 구해 KST로 변환해 항상
+    # 올바른 실제 생성 시각을 보여준다 (날짜/파일명용 today/today_file은 기존 로직
+    # 유지, 표시용 update_time만 별도 계산이라 스냅샷 파일명과 무관).
+    update_time = datetime.now(timezone.utc).astimezone(_KST).strftime("%H:%M")
 
     _medals = ["🥇", "🥈", "🥉"]
     _bar_colors = ["#fcd535", "#f0b90b", "#eaecef", "#929aa5", "#707a8a"]
@@ -246,8 +363,11 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     </div>
   </div>"""
 
+    weekly_html = _render_period_section(weekly_data, "weekly")
+    monthly_html = _render_period_section(monthly_data, "monthly")
+
     html = f"""<!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" data-bs-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -261,6 +381,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     var saved = localStorage.getItem('theme');
     if (saved === 'light' || saved === 'dark') {{
       document.documentElement.setAttribute('data-theme', saved);
+      document.documentElement.setAttribute('data-bs-theme', saved);
     }}
   }})();
 </script>
@@ -359,6 +480,15 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     font-size: 0.76rem; font-weight: 600; white-space: nowrap;
   }}
   .theme-toggle:hover {{ background: var(--hairline); }}
+  .tab-bar {{ display: flex; gap: 6px; padding: 0 30px; margin-top: 12px; }}
+  .tab-btn {{
+    background: transparent; border: none; border-bottom: 2px solid transparent;
+    color: var(--muted-strong); padding: 8px 4px; font-size: 0.92rem; font-weight: 600;
+    cursor: pointer;
+  }}
+  .tab-btn.active {{ color: var(--primary-text); border-bottom-color: var(--primary); }}
+  .tab-btn:hover {{ color: var(--body-text); }}
+  .tab-panel[hidden] {{ display: none; }}
   @media (max-width: 576px) {{
     .header {{ padding: 14px 16px; }}
     .header h1 {{ font-size: 1.2rem; }}
@@ -381,9 +511,14 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     </div>
     <select id="date-select" class="date-select" title="과거 날짜 조회"></select>
   </div>
-  <div class="date mt-1">{today} &nbsp;|&nbsp; 매일 오전 9시 자동 업데이트</div>
+  <div class="date mt-1">{today} &nbsp;|&nbsp; {update_time} 업데이트 (KST, 매일 자동 수집)</div>
 </div>
-<div class="container-fluid px-4">
+<div class="tab-bar">
+  <button class="tab-btn" data-tab="daily" onclick="switchTab('daily')">일간</button>
+  <button class="tab-btn" data-tab="weekly" onclick="switchTab('weekly')">주간</button>
+  <button class="tab-btn" data-tab="monthly" onclick="switchTab('monthly')">월간</button>
+</div>
+<div id="tab-daily" class="tab-panel container-fluid px-4">
   {summary_box}
   <div class="row">
     <div class="col-md-6 col-xl-4">
@@ -449,6 +584,12 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
       </div>
     </div>
   </div>
+</div>
+<div id="tab-weekly" class="tab-panel container-fluid px-4" hidden>
+  {weekly_html}
+</div>
+<div id="tab-monthly" class="tab-panel container-fluid px-4" hidden>
+  {monthly_html}
 </div>
 {_NAV_JS}
 </body>

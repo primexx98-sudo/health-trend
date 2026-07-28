@@ -1,0 +1,40 @@
+name: 건강기능식품 트랜드 주간 집계
+
+on:
+  schedule:
+    - cron: '30 1 * * 1'  # 01:30 UTC = 10:30 KST 매주 월요일 (daily.yml의 지연을 감안해 여유를 둠)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  aggregate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 가져오기
+        uses: actions/checkout@v4
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 패키지 설치
+        run: pip install requests openpyxl anthropic
+
+      - name: 주간 집계 생성
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          cd 트랜드
+          python src/aggregator/weekly.py
+
+      - name: 주간 집계 GitHub에 저장
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Actions"
+          git add docs/data/weekly/
+          git diff --staged --quiet || git commit -m "주간 집계 업데이트 $(date +'%Y-%m-%d')"
+          git push
