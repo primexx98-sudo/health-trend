@@ -119,6 +119,39 @@ def _aggregate_ecommerce_highlights(ecommerce_days, max_per_platform=4):
     return _cap_per_platform(ups) + _cap_per_platform(news)
 
 
+def _aggregate_ecommerce_rankings(ecommerce_days, top_n=10):
+    """일간 대시보드의 '이커머스 판매순위 TOP10'을 기간 단위로 다시 뽑는다 —
+    naver 키워드 평균 순위 집계(_aggregate_top_keywords)와 동일한 방식으로,
+    플랫폼별 상품의 그 기간 평균 순위를 내림차순(낮을수록 상위)으로 정렬."""
+    result = {}
+    for platform in PLATFORMS:
+        sums, counts, latest = {}, {}, {}
+        for _, day_data in ecommerce_days:
+            for item in day_data.get(platform, []):
+                name = item.get("name")
+                if not name:
+                    continue
+                sums[name] = sums.get(name, 0) + item.get("rank", 999)
+                counts[name] = counts.get(name, 0) + 1
+                latest[name] = item  # 마지막으로 덮어쓴 값 = 기간 내 가장 최근 정보
+
+        averaged = [
+            {
+                "name": name,
+                "avg_rank": round(sums[name] / counts[name], 1),
+                "days_seen": counts[name],
+                "category": latest[name].get("category"),
+                "price": latest[name].get("price"),
+                "url": latest[name].get("url"),
+                "image": latest[name].get("image"),
+            }
+            for name in sums
+        ]
+        averaged.sort(key=lambda x: x["avg_rank"])
+        result[platform] = averaged[:top_n]
+    return result
+
+
 def build_weekly_summary(iso_year=None, iso_week=None):
     if iso_year is None or iso_week is None:
         target = datetime.now() - timedelta(days=1)  # 실행일 전날 = 직전 완료된 주 안의 날짜
@@ -144,6 +177,7 @@ def build_weekly_summary(iso_year=None, iso_week=None):
     top_keywords = _aggregate_top_keywords(naver_days)
     news_highlights = _aggregate_news_highlights(digests)
     ecommerce_highlights = _aggregate_ecommerce_highlights(ecommerce_days)
+    ecommerce_rankings = _aggregate_ecommerce_rankings(ecommerce_days)
 
     material = {
         "이번 주 검색 상위 키워드": [f"{k['keyword']} (평균 {k['avg_ratio']:.0f}위)" for k in top_keywords[:10]],
@@ -166,6 +200,7 @@ def build_weekly_summary(iso_year=None, iso_week=None):
         "top_keywords": top_keywords[:10],
         "news_highlights": news_highlights[:10],
         "ecommerce_highlights": ecommerce_highlights[:10],
+        "ecommerce_rankings": ecommerce_rankings,
         "ai_summary": ai_result,
     }
 

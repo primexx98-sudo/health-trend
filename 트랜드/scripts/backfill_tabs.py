@@ -46,6 +46,12 @@ _STYLE = """
 .patched-news-item a { color:#eaecef; text-decoration:none; }
 .patched-news-item a:hover { color:#fcd535; }
 .patched-muted { color:#707a8a; font-size:0.85rem; }
+.patched-ecom-item { display:flex; align-items:center; gap:10px; padding:8px 4px; border-bottom:1px solid #2b3139; }
+.patched-ecom-thumb { width:40px; height:40px; object-fit:cover; border-radius:6px; flex-shrink:0; background:#2b3139; }
+.patched-ecom-name { display:block; color:#eaecef; text-decoration:none; font-size:0.82rem; line-height:1.3; }
+.patched-ecom-name:hover { color:#fcd535; }
+.patched-ecom-price { font-size:0.82rem; color:#fcd535; font-weight:700; }
+.patched-ecom-meta { font-size:0.68rem; color:#707a8a; }
 @media (max-width:576px){ .patched-container{padding:0 16px;} }
 </style>
 """
@@ -110,6 +116,23 @@ def _render_legacy_period_section(data, kind):
         for e in data.get("ecommerce_highlights", [])[:10]
     ) or _no_data()
 
+    ecommerce_rankings = data.get("ecommerce_rankings") or {}
+    ranking_html = ""
+    if any(ecommerce_rankings.values()):
+        rank_cols = ""
+        for platform in ("카카오선물하기", "다이소몰", "올리브영"):
+            items = ecommerce_rankings.get(platform, [])
+            rows = "".join(
+                f'<div class="patched-ecom-item">'
+                + (f'<img class="patched-ecom-thumb" src="{it["image"]}" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">' if it.get("image") else '<div class="patched-ecom-thumb"></div>')
+                + f'<div style="min-width:0;flex:1;"><div class="patched-ecom-meta">{i+1}위 · 평균 {it["avg_rank"]:.1f}위 · {it["days_seen"]}일</div>'
+                f'<a class="patched-ecom-name" href="{it.get("url","")}" target="_blank">{it["name"]}</a>'
+                f'<div class="patched-ecom-price">{it.get("price","")}</div></div></div>'
+                for i, it in enumerate(items)
+            ) or _no_data()
+            rank_cols += f'<div class="col-md-4"><div class="fw-bold mb-1" style="color:#eaecef;">{platform}</div>{rows}</div>'
+        ranking_html = f'<div class="patched-card"><div class="patched-card-header">🛒 {empty_label} 판매순위 TOP10 (기간 평균)</div><div class="row">{rank_cols}</div></div>'
+
     foodnews_html = ""
     if kind == "monthly":
         foodnews = data.get("foodnews") or {}
@@ -133,6 +156,7 @@ def _render_legacy_period_section(data, kind):
   <div class="col-md-4"><div class="patched-card"><div class="patched-card-header">📰 {empty_label} 주요 뉴스</div>{news_rows}</div></div>
   <div class="col-md-4"><div class="patched-card"><div class="patched-card-header">🛒 {empty_label} 이커머스 동향</div>{ecom_rows}</div></div>
 </div>
+{ranking_html}
 {foodnews_html}"""
 
 

@@ -12,6 +12,7 @@ from aggregator.weekly import (
     _aggregate_top_keywords,
     _aggregate_news_highlights,
     _aggregate_ecommerce_highlights,
+    _aggregate_ecommerce_rankings,
     _load_json,
     DATA_DIR,
 )
@@ -53,6 +54,7 @@ def build_monthly_summary(year=None, month=None):
     top_keywords = _aggregate_top_keywords(naver_days)
     news_highlights = _aggregate_news_highlights(digests)
     ecommerce_highlights = _aggregate_ecommerce_highlights(ecommerce_days)
+    ecommerce_rankings = _aggregate_ecommerce_rankings(ecommerce_days)
     foodnews = get_foodnews_monthly(year, month)
 
     material = {
@@ -78,6 +80,7 @@ def build_monthly_summary(year=None, month=None):
         "top_keywords": top_keywords[:15],
         "news_highlights": news_highlights[:15],
         "ecommerce_highlights": ecommerce_highlights[:15],
+        "ecommerce_rankings": ecommerce_rankings,
         "foodnews": foodnews,
         "ai_summary": ai_result,
     }

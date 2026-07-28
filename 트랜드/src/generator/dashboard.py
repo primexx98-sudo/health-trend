@@ -114,6 +114,41 @@ def _render_period_section(data, kind):
         for e in ecommerce_highlights[:10]
     ) or no_data
 
+    _ecom_platforms = [
+        ("카카오선물하기", "🎁 카카오 선물하기"),
+        ("다이소몰", "🏪 다이소몰"),
+        ("올리브영", "💚 올리브영"),
+    ]
+
+    def _ranking_col(key, label, items):
+        rows = "".join(
+            f'<div class="ecom-item">'
+            + (
+                f'<img class="ecom-thumb" src="{it["image"]}" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">'
+                if it.get("image") else '<div class="ecom-thumb"></div>'
+            )
+            + f'<div class="ecom-info">'
+            f'<div class="ecom-top"><span class="rank">{i+1}</span>'
+            f'<span class="ecom-cat">{it.get("category") or ""}</span>'
+            f'<span class="rank-badge badge-same">평균 {it["avg_rank"]:.1f}위 · {it["days_seen"]}일</span></div>'
+            f'<a class="ecom-name" href="{it.get("url","")}" target="_blank">{it["name"]}</a>'
+            f'<div class="ecom-price">{it.get("price","")}</div>'
+            f'</div></div>'
+            for i, it in enumerate(items)
+        )
+        body = rows if rows else no_data
+        return f'<div class="col-md-4"><div class="fw-bold mb-1 ecom-platform-label">{label}</div>{body}</div>'
+
+    ecommerce_rankings = data.get("ecommerce_rankings") or {}
+    ranking_cols = "".join(
+        _ranking_col(key, label, ecommerce_rankings.get(key, [])) for key, label in _ecom_platforms
+    )
+    ranking_row = f"""
+  <div class="card mb-3">
+    <div class="card-header"><span class="section-icon">🛒</span>{empty_period} 판매순위 TOP10 (기간 평균)</div>
+    <div class="card-body p-2"><div class="row">{ranking_cols}</div></div>
+  </div>""" if any(ecommerce_rankings.values()) else ""
+
     foodnews_block = ""
     if kind == "monthly":
         foodnews = data.get("foodnews") or {}
@@ -164,6 +199,7 @@ def _render_period_section(data, kind):
       </div>
     </div>
   </div>
+  {ranking_row}
   {foodnews_row}"""
 
 
