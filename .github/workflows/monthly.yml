@@ -23,12 +23,12 @@ jobs:
 
       - name: 패키지 설치
         run: |
-          pip install requests openpyxl anthropic playwright
+          pip install requests openpyxl google-genai playwright
           playwright install --with-deps chromium
 
       - name: 월간 집계 생성 (foodnews.co.kr 연동 포함)
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           cd 트랜드
           python src/aggregator/monthly.py

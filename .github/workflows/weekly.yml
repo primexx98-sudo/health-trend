@@ -22,11 +22,11 @@ jobs:
           python-version: '3.12'
 
       - name: 패키지 설치
-        run: pip install requests openpyxl anthropic
+        run: pip install requests openpyxl google-genai
 
       - name: 주간 집계 생성
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           cd 트랜드
           python src/aggregator/weekly.py

@@ -5,7 +5,7 @@ import re
 
 logger = logging.getLogger(__name__)
 
-MODEL = "claude-haiku-4-5-20251001"
+MODEL = "gemini-flash-latest"  # Google이 유지하는 최신 flash 별칭 — 특정 버전을 박아두면 구버전처럼 신규 사용자 접근이 막힐 수 있어 별칭 사용
 
 _PROMPT = """당신은 건강기능식품 산업 동향을 정리하는 애널리스트입니다.
 아래는 "{period_label}" 기간 동안 수집된 원본 데이터입니다. 이를 바탕으로 간결한 한국어 요약을 작성하세요.
@@ -18,11 +18,11 @@ _PROMPT = """당신은 건강기능식품 산업 동향을 정리하는 애널�
 
 
 def _client():
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         return None
-    import anthropic
-    return anthropic.Anthropic(api_key=api_key)
+    from google import genai
+    return genai.Client(api_key=api_key)
 
 
 def _format_material(material):
@@ -59,7 +59,7 @@ def summarize(period_label, material):
     반환: {"summary": str, "key_points": [str, ...]} | None (키 미설정·재료 없음·API 실패 시)"""
     client = _client()
     if client is None:
-        logger.warning("ANTHROPIC_API_KEY 미설정 — AI 요약 건너뜀")
+        logger.warning("GEMINI_API_KEY 미설정 — AI 요약 건너뜀")
         return None
     if not any(material.values()):
         logger.info(f"[{period_label}] AI 요약 재료 없음 — 건너뜀")
@@ -67,12 +67,11 @@ def summarize(period_label, material):
 
     formatted = _format_material(material)
     try:
-        resp = client.messages.create(
+        resp = client.models.generate_content(
             model=MODEL,
-            max_tokens=800,
-            messages=[{"role": "user", "content": _PROMPT.format(period_label=period_label, material=formatted)}],
+            contents=_PROMPT.format(period_label=period_label, material=formatted),
         )
-        text = resp.content[0].text
+        text = resp.text
     except Exception as e:
         logger.error(f"AI 요약 생성 실패 [{period_label}]: {e}")
         return None
