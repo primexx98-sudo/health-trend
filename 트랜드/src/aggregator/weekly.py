@@ -136,7 +136,9 @@ def build_weekly_summary(iso_year=None, iso_week=None):
         "iso_year": iso_year,
         "iso_week": iso_week,
         "date_range": [date_strs[0], date_strs[-1]],
-        "days_collected": len(digests),
+        # digest(뉴스 등)만 기준으로 하면 초기(digest 미축적 기간)에 검색순위·이커머스는
+        # 실제로 있는데도 "0일치"로 오해를 살 수 있어, 셋 중 가장 많이 확보된 걸로 표시
+        "days_collected": max(len(digests), len(naver_days), len(ecommerce_days)),
         "top_keywords": top_keywords[:10],
         "news_highlights": news_highlights[:10],
         "ecommerce_highlights": ecommerce_highlights[:10],

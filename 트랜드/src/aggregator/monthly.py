@@ -72,7 +72,9 @@ def build_monthly_summary(year=None, month=None):
         "year": year,
         "month": month,
         "date_range": [date_strs[0], date_strs[-1]] if date_strs else [],
-        "days_collected": len(digests),
+        # weekly.py와 동일 이유 — digest 미축적 기간에도 검색순위·이커머스 실데이터가
+        # 있으면 그 일수를 표시(0일치로 오해하지 않도록)
+        "days_collected": max(len(digests), len(naver_days), len(ecommerce_days)),
         "top_keywords": top_keywords[:15],
         "news_highlights": news_highlights[:15],
         "ecommerce_highlights": ecommerce_highlights[:15],

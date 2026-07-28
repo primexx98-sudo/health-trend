@@ -141,7 +141,7 @@ def _render_period_section(data, kind):
     <div class="card-header">📅 {label} 요약</div>
     <div class="card-body">
       {ai_html}
-      <div class="card-source">집계 대상: {days_collected}일치 원본 데이터 · AI 요약: Claude API</div>
+      <div class="card-source">집계 대상: {days_collected}일치 원본 데이터 · AI 요약: Gemini API</div>
     </div>
   </div>
   <div class="row">
