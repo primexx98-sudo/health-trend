@@ -76,9 +76,14 @@ def _aggregate_news_highlights(digests):
     return lines
 
 
-def _aggregate_ecommerce_highlights(ecommerce_days):
+def _aggregate_ecommerce_highlights(ecommerce_days, max_per_platform=4):
+    """플랫폼별로 '신규진입(new)' 빈도가 크게 다르다 — 특히 다이소몰은 순위 매칭 특성상
+    거의 매일 TOP10 전체가 new로 잡혀 신호가 아니라 잡음에 가깝다(2026-07-28 실데이터로
+    확인: 07-26/27/28 다이소몰 배지가 사실상 전부 new). 그대로 두면 이 잡음이 :10 슬라이스를
+    독점해 카카오·올리브영의 실제 순위 상승(up) 같은 의미 있는 신호가 밀려난다 — up을 먼저,
+    플랫폼당 상한을 둬서 다양성을 확보한다."""
     seen = set()
-    lines = []
+    ups, news = [], []
     for _, day_data in ecommerce_days:
         for platform in PLATFORMS:
             for item in day_data.get(platform, []):
@@ -90,9 +95,28 @@ def _aggregate_ecommerce_highlights(ecommerce_days):
                 if key in seen:
                     continue
                 seen.add(key)
-                kind = "new" if badge == "new" else "up"
-                lines.append({"platform": platform, "name": name, "badge": badge, "kind": kind})
-    return lines
+                if badge.startswith("up:"):
+                    ups.append({"platform": platform, "name": name, "badge": badge, "kind": "up",
+                                "_gain": int(badge.split(":")[1])})
+                elif badge == "new":
+                    news.append({"platform": platform, "name": name, "badge": badge, "kind": "new"})
+
+    ups.sort(key=lambda x: -x["_gain"])
+    for it in ups:
+        it.pop("_gain", None)
+
+    def _cap_per_platform(items):
+        counts = {}
+        capped = []
+        for it in items:
+            c = counts.get(it["platform"], 0)
+            if c >= max_per_platform:
+                continue
+            counts[it["platform"]] = c + 1
+            capped.append(it)
+        return capped
+
+    return _cap_per_platform(ups) + _cap_per_platform(news)
 
 
 def build_weekly_summary(iso_year=None, iso_week=None):
