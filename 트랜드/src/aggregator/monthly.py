@@ -33,7 +33,7 @@ def build_monthly_summary(year=None, month=None):
         target = datetime.now().replace(day=1) - timedelta(days=1)
         year, month = target.year, target.month
 
-    label = f"{year}년 {month}월"
+    label = f"{year % 100:02d}년 {month}월"
     today_str = datetime.now().strftime("%Y%m%d")
     date_strs = [d for d in _month_dates(year, month) if d <= today_str]
 

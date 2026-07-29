@@ -86,7 +86,7 @@ def _render_legacy_period_section(data, kind):
     empty_label = "주간" if kind == "weekly" else "월간"
     if not data:
         return (
-            f'<div class="patched-card"><div class="patched-card-header">📅 {empty_label} 요약</div>'
+            f'<div class="patched-card"><div class="patched-card-header">📅 {empty_label}</div>'
             f'<span class="patched-muted">{empty_label} 집계 데이터를 아직 축적 중입니다.</span></div>'
         )
 
@@ -148,7 +148,7 @@ def _render_legacy_period_section(data, kind):
 
     return f"""
 <div class="patched-card">
-  <div class="patched-card-header">📅 {label} 요약</div>
+  <div class="patched-card-header">📅 {label}</div>
   {ai_html}
 </div>
 <div class="row">

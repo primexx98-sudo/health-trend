@@ -80,7 +80,7 @@ def _render_period_section(data, kind):
     if not data:
         return f"""
   <div class="card mb-3 summary-card">
-    <div class="card-header">📅 {empty_period} 요약</div>
+    <div class="card-header">📅 {empty_period}</div>
     <div class="card-body"><span class="text-muted small">{empty_period} 집계 데이터를 아직 축적 중입니다 — 매{"주" if kind == "weekly" else "월"} 자동 집계되며 시간이 지나면 채워집니다.</span></div>
   </div>"""
 
@@ -173,7 +173,7 @@ def _render_period_section(data, kind):
 
     return f"""
   <div class="card mb-3 summary-card">
-    <div class="card-header">📅 {label} 요약</div>
+    <div class="card-header">📅 {label}</div>
     <div class="card-body">
       {ai_html}
       <div class="card-source">집계 대상: {days_collected}일치 원본 데이터 · AI 요약: Gemini API</div>
