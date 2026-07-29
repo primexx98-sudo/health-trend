@@ -3,6 +3,13 @@ import os
 
 _KST = timezone(timedelta(hours=9))
 
+_ECOM_PLATFORMS = [
+    ("카카오선물하기", "🎁 카카오 선물하기"),
+    ("다이소몰", "🏪 다이소몰"),
+    ("올리브영", "💚 올리브영"),
+]
+_BAR_COLORS = ["#fcd535", "#f0b90b", "#eaecef", "#929aa5", "#707a8a"]
+
 _NAV_JS = """\
 <script>
 (function(){
@@ -114,11 +121,7 @@ def _render_period_section(data, kind):
         for e in ecommerce_highlights[:10]
     ) or no_data
 
-    _ecom_platforms = [
-        ("카카오선물하기", "🎁 카카오 선물하기"),
-        ("다이소몰", "🏪 다이소몰"),
-        ("올리브영", "💚 올리브영"),
-    ]
+    _ecom_platforms = _ECOM_PLATFORMS
 
     def _ranking_col(key, label, items):
         rows = "".join(
@@ -147,6 +150,84 @@ def _render_period_section(data, kind):
   <div class="card mb-3">
     <div class="card-header"><span class="section-icon">🛒</span>{empty_period} 판매순위 TOP10 (기간 평균)</div>
     <div class="card-body p-2"><div class="row">{ranking_cols}</div></div>
+  </div>""" if any(ecommerce_rankings.values()) else ""
+
+    # ── 2026-07-29: 검색↔판매 갭 / 브랜드 트렌드 / 카테고리 트렌드 (일간에서 이전) ──
+    # 일간 스냅샷(플랫폼당 최대 10개)은 표본이 작고 하루 단위로 들쭉날쭉해서,
+    # 기간 집계(꾸준히 팔린 상품 위주로 필터링된 ecommerce_rankings)를 쓰는
+    # 주간/월간 탭이 더 안정적이라는 판단으로 여기로 옮김.
+    _period_items = [it for key, _ in _ecom_platforms for it in ecommerce_rankings.get(key, [])]
+
+    def _period_search_sales_gap(top_n=15, show_n=6):
+        product_names = " ".join(it.get("name", "") for it in _period_items)
+        gaps = [
+            (i + 1, k["keyword"]) for i, k in enumerate(top_keywords[:top_n])
+            if k["keyword"] not in product_names
+        ]
+        if not gaps:
+            return '<span class="text-muted small">검색 상위 키워드가 모두 판매순위 상품명에서 확인됨</span>'
+        return "".join(
+            f'<div class="summary-line">🔍 검색 <b>{rank}위</b> <b>{kw}</b> — 판매순위 TOP10 상품명에 미노출</div>'
+            for rank, kw in gaps[:show_n]
+        )
+
+    def _period_brand_trend(top_n=6):
+        counts = {}
+        for it in _period_items:
+            brand = (it.get("brand") or "").strip()
+            if brand:
+                counts[brand] = counts.get(brand, 0) + 1
+        ranked = sorted(counts.items(), key=lambda x: -x[1])[:top_n]
+        if not ranked:
+            return no_data
+        return "".join(f'<span class="tag">{brand} <small>{n}건</small></span>' for brand, n in ranked)
+
+    def _period_category_trend(top_n=6):
+        counts = {}
+        for it in _period_items:
+            cat = (it.get("category") or "").strip()
+            if cat:
+                counts[cat] = counts.get(cat, 0) + 1
+        total = sum(counts.values())
+        if not total:
+            return no_data
+        ranked = sorted(counts.items(), key=lambda x: -x[1])[:top_n]
+        rows = "".join(
+            f'<tr><td class="rank">{i + 1}</td>'
+            f'<td style="font-weight:{"700" if i < 3 else "400"}">{cat}</td>'
+            f'<td><div class="bar" style="width:{n / total * 100:.0f}%;background:{_BAR_COLORS[min(i, 4)]}">'
+            f'{n}건 ({n / total * 100:.0f}%)</div></td></tr>'
+            for i, (cat, n) in enumerate(ranked)
+        )
+        return f'<table><tbody>{rows}</tbody></table>'
+
+    insight_row = f"""
+  <div class="card mb-3">
+    <div class="card-header"><span class="section-icon">🔍</span>{empty_period} 검색↔판매 갭 분석</div>
+    <div class="card-body p-2">
+      {_period_search_sales_gap()}
+      <div class="card-source">{empty_period} 검색 상위 15개 키워드 중 {empty_period} 판매순위 TOP10 상품명에 등장하지 않는 키워드 — 관심은 있는데 아직 대표 히트상품이 없는 성분 후보(신제품 기획 참고용, 상품명 텍스트 매칭 기반 참고 지표)</div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><span class="section-icon">🏷</span>{empty_period} 브랜드 트렌드</div>
+        <div class="card-body">
+          {_period_brand_trend()}
+          <div class="card-source">{empty_period} 판매순위 TOP10 합산 내 브랜드 노출 빈도</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><span class="section-icon">🗂</span>{empty_period} 카테고리 트렌드</div>
+        <div class="card-body p-2">
+          {_period_category_trend()}
+          <div class="card-source">{empty_period} 판매순위 TOP10 합산 내 카테고리 비중</div>
+        </div>
+      </div>
+    </div>
   </div>""" if any(ecommerce_rankings.values()) else ""
 
     foodnews_block = ""
@@ -200,6 +281,7 @@ def _render_period_section(data, kind):
     </div>
   </div>
   {ranking_row}
+  {insight_row}
   {foodnews_row}"""
 
 
@@ -217,7 +299,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     update_time = datetime.now(timezone.utc).astimezone(_KST).strftime("%H:%M")
 
     _medals = ["🥇", "🥈", "🥉"]
-    _bar_colors = ["#fcd535", "#f0b90b", "#eaecef", "#929aa5", "#707a8a"]
+    _bar_colors = _BAR_COLORS
     no_data = '<span class="text-muted small">데이터 수집 중...</span>'
 
     # 전일 스냅샷에서 키워드별 순위(1-base)를 미리 뽑아 둠 — 없으면 배지 생략
@@ -281,11 +363,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
         f'<span class="rising-tag">🔥 {r["keyword"]}</span>'
         for r in rising_data[:8]
     )
-    _ecommerce_platforms = [
-        ("카카오선물하기", "🎁 카카오 선물하기"),
-        ("다이소몰", "🏪 다이소몰"),
-        ("올리브영", "💚 올리브영"),
-    ]
+    _ecommerce_platforms = _ECOM_PLATFORMS
 
     def _ecommerce_col(key, label):
         items = ecommerce_data.get(key, [])
@@ -310,64 +388,6 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     ecommerce_cols = "".join(_ecommerce_col(key, label) for key, label in _ecommerce_platforms)
     ecommerce_date = ecommerce_data.get("date", "")
     ecommerce_is_stale = bool(ecommerce_date) and ecommerce_date != datetime.now().strftime("%Y-%m-%d")
-
-    # ── 2026-07-29 신설: 검색↔판매 갭 / 브랜드 트렌드 / 카테고리 트렌드 ──
-    # 셋 다 새로 수집하는 데이터 없이, 이미 받아온 naver_data·ecommerce_data를
-    # 다른 각도로 재조합만 한다 (추가 API 호출 없음).
-    _all_ecommerce_items = [
-        it for key, _ in _ecommerce_platforms for it in ecommerce_data.get(key, [])
-    ]
-
-    def _search_sales_gap(top_n=15, show_n=6):
-        """검색 상위 키워드 중, 이커머스 3사 TOP10 상품명 어디에도 등장하지 않는
-        키워드를 찾는다 — '관심은 있는데 아직 대표 히트상품이 없는' 성분 후보."""
-        product_names = " ".join(it.get("name", "") for it in _all_ecommerce_items)
-        gaps = [
-            (i + 1, d["keyword"]) for i, d in enumerate(naver_data[:top_n])
-            if d["keyword"] not in product_names
-        ]
-        if not gaps:
-            return '<span class="text-muted small">검색 상위 키워드가 모두 이커머스 TOP10 상품명에서 확인됨</span>'
-        return "".join(
-            f'<div class="summary-line">🔍 검색 <b>{rank}위</b> <b>{kw}</b> — 이커머스 TOP10 상품명에 미노출</div>'
-            for rank, kw in gaps[:show_n]
-        )
-
-    def _brand_trend_html(top_n=6):
-        counts = {}
-        for it in _all_ecommerce_items:
-            brand = (it.get("brand") or "").strip()
-            if brand:
-                counts[brand] = counts.get(brand, 0) + 1
-        ranked = sorted(counts.items(), key=lambda x: -x[1])[:top_n]
-        if not ranked:
-            return no_data
-        return "".join(
-            f'<span class="tag">{brand} <small>{n}건</small></span>' for brand, n in ranked
-        )
-
-    def _category_trend_html(top_n=6):
-        counts = {}
-        for it in _all_ecommerce_items:
-            cat = (it.get("category") or "").strip()
-            if cat:
-                counts[cat] = counts.get(cat, 0) + 1
-        total = sum(counts.values())
-        if not total:
-            return no_data
-        ranked = sorted(counts.items(), key=lambda x: -x[1])[:top_n]
-        rows = "".join(
-            f'<tr><td class="rank">{i + 1}</td>'
-            f'<td style="font-weight:{"700" if i < 3 else "400"}">{cat}</td>'
-            f'<td><div class="bar" style="width:{n / total * 100:.0f}%;background:{_bar_colors[min(i, 4)]}">'
-            f'{n}건 ({n / total * 100:.0f}%)</div></td></tr>'
-            for i, (cat, n) in enumerate(ranked)
-        )
-        return f'<table><tbody>{rows}</tbody></table>'
-
-    gap_analysis_html = _search_sales_gap()
-    brand_trend_html = _brand_trend_html()
-    category_trend_html = _category_trend_html()
 
     # ── 오늘의 요약 박스 (2026-07-22 신설 — 기존 "오늘의 급상승 키워드" 배너 대체) ──
     def _ecommerce_highlights():
@@ -652,33 +672,6 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
         {ecommerce_cols if ecommerce_cols else no_data}
       </div>
       <div class="card-source">출처: 올리브영·다이소몰·카카오 선물하기 판매순위 크롤러 (별도 시장조사 프로젝트, 자동 수집){f" · {ecommerce_date} 기준(전일자 랭킹 — 각 몰의 당일 랭킹은 오전 10시경 갱신되어 반영 못 함)" if ecommerce_is_stale else f" · {ecommerce_date} 기준" if ecommerce_date else ""} · NEW=신규 진입, ▲▼=전일 대비 순위 변동</div>
-    </div>
-  </div>
-  <div class="card mb-3">
-    <div class="card-header"><span class="section-icon">🔍</span>검색↔판매 갭 분석</div>
-    <div class="card-body p-2">
-      {gap_analysis_html}
-      <div class="card-source">국내 검색 상위 15개 키워드 중 이커머스 3사(카카오·다이소·올리브영) TOP10 상품명에 등장하지 않는 키워드 — 관심은 있는데 아직 대표 히트상품이 없는 성분 후보(신제품 기획 참고용, 상품명 텍스트 매칭 기반 참고 지표)</div>
-    </div>
-  </div>
-  <div class="row">
-    <div class="col-md-6">
-      <div class="card">
-        <div class="card-header"><span class="section-icon">🏷</span>브랜드 트렌드</div>
-        <div class="card-body">
-          {brand_trend_html}
-          <div class="card-source">이커머스 3사 TOP10 합산(최대 30개 상품) 내 브랜드 노출 빈도</div>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-6">
-      <div class="card">
-        <div class="card-header"><span class="section-icon">🗂</span>카테고리 트렌드</div>
-        <div class="card-body p-2">
-          {category_trend_html}
-          <div class="card-source">이커머스 3사 TOP10 합산 내 카테고리 비중</div>
-        </div>
-      </div>
     </div>
   </div>
   <div class="row">

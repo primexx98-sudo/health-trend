@@ -154,6 +154,7 @@ def _aggregate_ecommerce_rankings(ecommerce_days, top_n=10):
                 "avg_rank": round(rank_sums[name] / counts[name], 1),
                 "days_seen": counts[name],
                 "category": latest[name].get("category"),
+                "brand": latest[name].get("brand"),
                 "price": latest[name].get("price"),
                 "url": latest[name].get("url"),
                 "image": latest[name].get("image"),
