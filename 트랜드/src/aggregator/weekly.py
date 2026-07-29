@@ -44,7 +44,7 @@ def _month_label_for_week(iso_year, iso_week):
     week_index = iso_week - first_iso_week + 1
     if iso_year != first_iso_year:
         week_index = 1  # 해 경계를 넘는 드문 경우 — 안전하게 1주차로 표기
-    return f"{thursday.year}년 {thursday.month}월 {week_index}주차"
+    return f"{thursday.year % 100:02d}년 {thursday.month}월 {week_index}주차"
 
 
 def _aggregate_top_keywords(naver_days):
@@ -120,35 +120,52 @@ def _aggregate_ecommerce_highlights(ecommerce_days, max_per_platform=4):
 
 
 def _aggregate_ecommerce_rankings(ecommerce_days, top_n=10):
-    """일간 대시보드의 '이커머스 판매순위 TOP10'을 기간 단위로 다시 뽑는다 —
-    naver 키워드 평균 순위 집계(_aggregate_top_keywords)와 동일한 방식으로,
-    플랫폼별 상품의 그 기간 평균 순위를 내림차순(낮을수록 상위)으로 정렬."""
+    """일간 대시보드의 '이커머스 판매순위 TOP10'을 기간 단위로 다시 뽑는다.
+    online-mall-ranking의 monthly_aggregate.py(aggregate_platform)와 동일한 선정 방식을 차용:
+    단순 평균순위로 정렬하면 1~2일만 반짝 상위권에 든 상품이 표본이 적다는 이유만으로
+    꾸준히 등장한 상품을 제치는 왜곡이 생겨서, 순위 점수(1위=5점~10위=0.5점) 평균×70% +
+    등장률×30%로 가중한 점수로 정렬하고, 최소 등장횟수 미달 상품은 제외한다(부족하면 기준 완화)."""
+    total_days = len(ecommerce_days)
     result = {}
     for platform in PLATFORMS:
-        sums, counts, latest = {}, {}, {}
+        rank_sums, score_sums, counts, latest = {}, {}, {}, {}
         for _, day_data in ecommerce_days:
             for item in day_data.get(platform, []):
                 name = item.get("name")
                 if not name:
                     continue
-                sums[name] = sums.get(name, 0) + item.get("rank", 999)
+                rank = item.get("rank", 999)
+                rank_sums[name] = rank_sums.get(name, 0) + rank
+                score_sums[name] = score_sums.get(name, 0) + (11 - rank) * 0.5  # 1위=5점...10위=0.5점
                 counts[name] = counts.get(name, 0) + 1
                 latest[name] = item  # 마지막으로 덮어쓴 값 = 기간 내 가장 최근 정보
 
-        averaged = [
+        # 등장횟수 3회 미만 상품은 제외(1~2회 등장한 상품이 평균순위만으로 상위권에 오르는 것 방지).
+        # 단, 필터 후 top_n이 안 채워지면 기준을 3→1로 순차 완화해 최대한 채운다.
+        min_appear = min(3, total_days) if total_days else 1
+        names = [n for n in counts if counts[n] >= min_appear]
+        while len(names) < top_n and min_appear > 1:
+            min_appear -= 1
+            names = [n for n in counts if counts[n] >= min_appear]
+
+        scored = [
             {
                 "name": name,
-                "avg_rank": round(sums[name] / counts[name], 1),
+                "avg_rank": round(rank_sums[name] / counts[name], 1),
                 "days_seen": counts[name],
                 "category": latest[name].get("category"),
                 "price": latest[name].get("price"),
                 "url": latest[name].get("url"),
                 "image": latest[name].get("image"),
+                "_score": (score_sums[name] / counts[name]) * 0.7
+                + (counts[name] / total_days * 5 * 0.3 if total_days else 0),
             }
-            for name in sums
+            for name in names
         ]
-        averaged.sort(key=lambda x: x["avg_rank"])
-        result[platform] = averaged[:top_n]
+        scored.sort(key=lambda x: -x["_score"])
+        for it in scored:
+            it.pop("_score", None)
+        result[platform] = scored[:top_n]
     return result
 
 
