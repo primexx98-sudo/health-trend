@@ -1,3 +1,4 @@
+import re
 import requests
 import logging
 from bs4 import BeautifulSoup
@@ -139,6 +140,46 @@ def categorize(title, desc=""):
     return "general"
 
 
+# 근접 중복 판정 임계값 — 실제 중복 사례(같은 제품 출시를 매체별로 다르게 보도)의
+# 문자 2-gram Jaccard 유사도가 0.19~0.37에서 형성되고, 무관한 기사끼리는 0.05 이하로
+# 뚜렷이 갈리는 걸 실측 확인해 0.28로 설정. "식약처 개별인정형 원료 3종/5종 인정"처럼
+# 정형화된 규제 헤드라인은 서로 다른 발표인데도 유사도가 0.5+까지 올라가므로, 두 제목에
+# 모두 숫자가 있고 그 숫자 집합이 겹치지 않으면(3종 vs 5종) 중복 판정에서 제외한다.
+_DUP_SIMILARITY_THRESHOLD = 0.28
+
+
+def _normalize_for_dedup(title):
+    t = re.sub(r"\[[^\]]*\]", "", title)  # "[7월 올영픽]" 같은 접두 태그 제거
+    t = re.sub(r"[\"'“”‘’()「」『』…·,.!?]", "", t)
+    return re.sub(r"\s+", "", t)
+
+
+def _char_bigrams(s):
+    return {s[i:i + 2] for i in range(len(s) - 1)} if len(s) > 1 else {s}
+
+
+def _title_similarity(norm_a, norm_b):
+    bg_a, bg_b = _char_bigrams(norm_a), _char_bigrams(norm_b)
+    if not bg_a or not bg_b:
+        return 0.0
+    return len(bg_a & bg_b) / len(bg_a | bg_b)
+
+
+def is_near_duplicate(title, kept_norms):
+    """이미 채택된 기사 제목들(정규화된 문자열 리스트) 대비 근접 중복인지 판정.
+    제목 완전일치만 걸러내던 기존 dedup으로는 매체마다 표현이 다른 동일 사건
+    보도(예: 같은 제품 출시 소식 3건)를 못 걸렀던 문제를 보완한다."""
+    norm = _normalize_for_dedup(title)
+    norm_digits = set(re.findall(r"\d+", norm))
+    for kn in kept_norms:
+        kn_digits = set(re.findall(r"\d+", kn))
+        if norm_digits and kn_digits and norm_digits.isdisjoint(kn_digits):
+            continue
+        if _title_similarity(norm, kn) >= _DUP_SIMILARITY_THRESHOLD:
+            return True
+    return False
+
+
 def get_naver_news(query, display=10):
     url = "https://openapi.naver.com/v1/search/news.json"
     # requests가 params 값을 자동으로 URL 인코딩하므로 quote()를 또 적용하면 이중 인코딩되어
@@ -249,27 +290,27 @@ def collect_all_news():
     regulatory_items = _collect_from_queries(QUERIES_REGULATORY, days=30)
     rss_items = get_korean_rss_news()
 
-    seen = set()
+    kept_norms = []
     research, regulatory, general = [], [], []
 
     for item in research_items:
-        if item["title"] not in seen:
-            seen.add(item["title"])
+        if not is_near_duplicate(item["title"], kept_norms):
+            kept_norms.append(_normalize_for_dedup(item["title"]))
             research.append(item)
 
     for item in regulatory_items:
-        if item["title"] not in seen:
-            seen.add(item["title"])
+        if not is_near_duplicate(item["title"], kept_norms):
+            kept_norms.append(_normalize_for_dedup(item["title"]))
             regulatory.append(item)
 
     for item in general_items:
-        if item["title"] not in seen:
-            seen.add(item["title"])
+        if not is_near_duplicate(item["title"], kept_norms):
+            kept_norms.append(_normalize_for_dedup(item["title"]))
             general.append(item)
 
     for item in rss_items:
-        if item["title"] not in seen:
-            seen.add(item["title"])
+        if not is_near_duplicate(item["title"], kept_norms):
+            kept_norms.append(_normalize_for_dedup(item["title"]))
             cat = item["category"]
             if cat == "research":
                 research.append(item)
