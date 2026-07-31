@@ -66,7 +66,7 @@ def patch_legacy_dashboards(docs_dir):
             with open(fpath, "w", encoding="utf-8") as f:
                 f.write(patched)
 
-def cleanup_old_dashboards(output_dir, keep_days=30):
+def cleanup_old_dashboards(output_dir, keep_days=90):
     cutoff = datetime.now() - timedelta(days=keep_days)
     removed = 0
     for fpath in glob.glob(os.path.join(output_dir, "dashboard_????????.html")):
@@ -98,7 +98,7 @@ def save_naver_snapshot(data_dir, date_str, naver_data):
     with open(path, "w", encoding="utf-8") as f:
         _json.dump(naver_data, f, ensure_ascii=False)
 
-def cleanup_old_snapshots(data_dir, keep_days=30):
+def cleanup_old_snapshots(data_dir, keep_days=90):
     cutoff = datetime.now() - timedelta(days=keep_days)
     removed = 0
     for fpath in glob.glob(os.path.join(data_dir, "naver_????????.json")):
@@ -129,7 +129,7 @@ def save_digest_snapshot(data_dir, date_str, sns_data, news_data, rising_data, l
         _json.dump(payload, f, ensure_ascii=False)
 
 
-def cleanup_old_digests(data_dir, keep_days=35):
+def cleanup_old_digests(data_dir, keep_days=90):
     cutoff = datetime.now() - timedelta(days=keep_days)
     removed = 0
     for fpath in glob.glob(os.path.join(data_dir, "digest_????????.json")):
@@ -160,6 +160,25 @@ def load_latest_period_snapshot(period_dir, prefix):
         return None
 
 
+def load_period_archive(period_dir, prefix, keep_n):
+    """docs/data/weekly 또는 docs/data/monthly의 전체 회차를 최신순으로 로드 — 보관함 탭용.
+    weekly/monthly json은 별도 삭제 로직이 없어 계속 쌓이므로, 페이지에 무한정 끼워넣지 않게
+    UI 표시 개수만 keep_n으로 제한한다(파일 자체는 그대로 유지됨)."""
+    if not os.path.isdir(period_dir):
+        return []
+    files = sorted(glob.glob(os.path.join(period_dir, f"{prefix}_*.json")), reverse=True)[:keep_n]
+    import json as _json
+    out = []
+    for fpath in files:
+        period_id = os.path.basename(fpath)[len(prefix) + 1:-len(".json")]
+        try:
+            with open(fpath, "r", encoding="utf-8") as f:
+                out.append((period_id, _json.load(f)))
+        except Exception:
+            pass
+    return out
+
+
 def load_ecommerce_snapshot(data_dir, date_str):
     path = os.path.join(data_dir, f"ecommerce_{date_str}.json")
     if not os.path.exists(path):
@@ -178,7 +197,7 @@ def save_ecommerce_snapshot(data_dir, date_str, ecommerce_data):
     with open(path, "w", encoding="utf-8") as f:
         _json.dump(ecommerce_data, f, ensure_ascii=False)
 
-def cleanup_old_ecommerce_snapshots(data_dir, keep_days=30):
+def cleanup_old_ecommerce_snapshots(data_dir, keep_days=90):
     cutoff = datetime.now() - timedelta(days=keep_days)
     removed = 0
     for fpath in glob.glob(os.path.join(data_dir, "ecommerce_????????.json")):
@@ -238,13 +257,21 @@ def main():
     weekly_data = load_latest_period_snapshot(os.path.join(_committed_data_dir, "weekly"), "weekly")
     monthly_data = load_latest_period_snapshot(os.path.join(_committed_data_dir, "monthly"), "monthly")
 
+    # 보관함 탭 — 주간은 최근 104회(약 2년), 월간은 최근 36회(3년)까지 화면에 노출.
+    # 그 이전 회차도 파일은 삭제되지 않고 docs/data/weekly·monthly에 그대로 남아있음.
+    weekly_archive = load_period_archive(os.path.join(_committed_data_dir, "weekly"), "weekly", keep_n=104)
+    monthly_archive = load_period_archive(os.path.join(_committed_data_dir, "monthly"), "monthly", keep_n=36)
+
     html, date_str = generate_html(
         naver_data, sns_data, news_data, rising_data, overseas_data,
         ecommerce_data=ecommerce_data, naver_prev_data=naver_prev_data,
         law_summary=law_summary, weekly_data=weekly_data, monthly_data=monthly_data,
+        weekly_archive=weekly_archive, monthly_archive=monthly_archive,
     )
 
-    all_dates = ([date_str] + [d for d in existing if d != date_str])[:30]
+    # 일별 대시보드 백업은 cleanup_old_dashboards가 90일로 보관 기간을 관리하므로
+    # 여기서는 별도 개수 제한을 두지 않고 실제 존재하는 파일 전부를 노출한다.
+    all_dates = [date_str] + [d for d in existing if d != date_str]
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 

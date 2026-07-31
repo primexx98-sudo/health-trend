@@ -20,12 +20,22 @@ _NAV_JS = """\
     .then(function(r){ return r.json(); })
     .then(function(dates){
       var cur = (location.pathname.match(/dashboard_(\\d{8})\\.html/) || [])[1];
+      var archiveList = document.getElementById('archive-daily-list');
+      if (archiveList) archiveList.innerHTML = '';
       dates.forEach(function(d, i){
-        var opt = document.createElement('option');
         var label = d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6,8);
-        opt.value = i === 0 ? './index.html' : ('./dashboard_'+d+'.html');
+        var href = i === 0 ? './index.html' : ('./dashboard_'+d+'.html');
+        var opt = document.createElement('option');
+        opt.value = href;
         opt.text  = i === 0 ? label+' (오늘)' : label;
         sel.appendChild(opt);
+        if (archiveList) {
+          var a = document.createElement('a');
+          a.href = href;
+          a.className = 'archive-list-link';
+          a.textContent = i === 0 ? label+' (오늘)' : label;
+          archiveList.appendChild(a);
+        }
       });
       sel.value = cur ? ('./dashboard_'+cur+'.html') : './index.html';
     })
@@ -46,7 +56,7 @@ function toggleTheme(){
 }
 applyThemeIcon();
 function switchTab(name){
-  ['daily','weekly','monthly'].forEach(function(n){
+  ['daily','weekly','monthly','archive'].forEach(function(n){
     var panel = document.getElementById('tab-' + n);
     if (panel) panel.hidden = (n !== name);
     var btn = document.querySelector('.tab-btn[data-tab="' + n + '"]');
@@ -54,9 +64,25 @@ function switchTab(name){
   });
   history.replaceState(null, '', '#' + name);
 }
+function switchArchiveSub(name){
+  ['daily','weekly','monthly'].forEach(function(n){
+    var panel = document.getElementById('archive-' + n);
+    if (panel) panel.hidden = (n !== name);
+    var btn = document.querySelector('.archive-sub-btn[data-sub="' + n + '"]');
+    if (btn) btn.classList.toggle('active', n === name);
+  });
+}
+function showArchivePeriod(kind, id){
+  document.querySelectorAll('.archive-period[data-kind="'+kind+'"]').forEach(function(el){
+    el.hidden = el.getAttribute('data-period') !== id;
+  });
+  document.querySelectorAll('.archive-list-item[data-kind="'+kind+'"]').forEach(function(el){
+    el.classList.toggle('active', el.getAttribute('data-period') === id);
+  });
+}
 (function(){
   var initial = (location.hash || '#daily').slice(1);
-  if (['daily','weekly','monthly'].indexOf(initial) === -1) initial = 'daily';
+  if (['daily','weekly','monthly','archive'].indexOf(initial) === -1) initial = 'daily';
   switchTab(initial);
 })();
 </script>"""
@@ -285,7 +311,30 @@ def _render_period_section(data, kind):
   {foodnews_row}"""
 
 
-def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=None, available_dates=None, ecommerce_data=None, naver_prev_data=None, law_summary=None, weekly_data=None, monthly_data=None):
+def _render_archive_list_and_blocks(archive, kind):
+    """보관함 탭의 주간/월간 목록. archive: [(period_id, data), ...] 최신순.
+    목록(클릭용 사이드바)과 본문(전부 미리 렌더링해 hidden으로 끼워둔 뒤 JS로 토글)을 함께 만든다 —
+    _render_period_section을 그대로 재사용해 렌더링 로직이 두 곳에서 갈라지지 않게 한다."""
+    if not archive:
+        empty = "주간" if kind == "weekly" else "월간"
+        return f'<span class="text-muted small">아직 축적된 {empty} 회차가 없습니다.</span>', ""
+    items, blocks = [], []
+    for i, (period_id, data) in enumerate(archive):
+        label = (data.get("period_label") if data else None) or period_id
+        active_cls = " active" if i == 0 else ""
+        hidden_attr = "" if i == 0 else " hidden"
+        items.append(
+            f'<div class="archive-list-item{active_cls}" data-kind="{kind}" data-period="{period_id}" '
+            f'onclick="showArchivePeriod(\'{kind}\',\'{period_id}\')">{label}</div>'
+        )
+        blocks.append(
+            f'<div class="archive-period" data-kind="{kind}" data-period="{period_id}"{hidden_attr}>'
+            f'{_render_period_section(data, kind)}</div>'
+        )
+    return "".join(items), "".join(blocks)
+
+
+def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=None, available_dates=None, ecommerce_data=None, naver_prev_data=None, law_summary=None, weekly_data=None, monthly_data=None, weekly_archive=None, monthly_archive=None):
     if overseas_data is None:
         overseas_data = []
     if ecommerce_data is None:
@@ -479,6 +528,8 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
 
     weekly_html = _render_period_section(weekly_data, "weekly")
     monthly_html = _render_period_section(monthly_data, "monthly")
+    weekly_archive_list, weekly_archive_blocks = _render_archive_list_and_blocks(weekly_archive or [], "weekly")
+    monthly_archive_list, monthly_archive_blocks = _render_archive_list_and_blocks(monthly_archive or [], "monthly")
 
     html = f"""<!DOCTYPE html>
 <html lang="ko" data-bs-theme="dark">
@@ -603,6 +654,15 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .tab-btn.active {{ color: var(--primary-text); border-bottom-color: var(--primary); }}
   .tab-btn:hover {{ color: var(--body-text); }}
   .tab-panel[hidden] {{ display: none; }}
+  .archive-subnav {{ display: flex; gap: 6px; margin-bottom: 14px; }}
+  .archive-sub[hidden] {{ display: none; }}
+  .archive-list {{ display: flex; flex-direction: column; gap: 2px; max-height: 520px; overflow-y: auto; }}
+  .archive-list-item {{ padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; color: var(--body-text); }}
+  .archive-list-item:hover {{ background: var(--surface-elevated); }}
+  .archive-list-item.active {{ background: var(--primary); color: #1e2329; font-weight: 700; }}
+  .archive-list-link {{ display: block; padding: 6px 10px; border-radius: 6px; color: var(--body-text); text-decoration: none; font-size: 0.85rem; }}
+  .archive-list-link:hover {{ background: var(--surface-elevated); color: var(--primary-text); }}
+  .archive-period[hidden] {{ display: none; }}
   @media (max-width: 576px) {{
     .header {{ padding: 14px 16px; }}
     .header h1 {{ font-size: 1.2rem; }}
@@ -628,6 +688,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
         <button class="tab-btn" data-tab="daily" onclick="switchTab('daily')">일간</button>
         <button class="tab-btn" data-tab="weekly" onclick="switchTab('weekly')">주간</button>
         <button class="tab-btn" data-tab="monthly" onclick="switchTab('monthly')">월간</button>
+        <button class="tab-btn" data-tab="archive" onclick="switchTab('archive')">보관함</button>
       </div>
       <select id="date-select" class="date-select" title="과거 날짜 조회"></select>
     </div>
@@ -706,6 +767,41 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
 </div>
 <div id="tab-monthly" class="tab-panel container-fluid px-4" hidden>
   {monthly_html}
+</div>
+<div id="tab-archive" class="tab-panel container-fluid px-4" hidden>
+  <div class="archive-subnav">
+    <button class="tab-btn archive-sub-btn active" data-sub="daily" onclick="switchArchiveSub('daily')">일간</button>
+    <button class="tab-btn archive-sub-btn" data-sub="weekly" onclick="switchArchiveSub('weekly')">주간</button>
+    <button class="tab-btn archive-sub-btn" data-sub="monthly" onclick="switchArchiveSub('monthly')">월간</button>
+  </div>
+  <div id="archive-daily" class="archive-sub">
+    <div class="card">
+      <div class="card-header"><span class="section-icon">📅</span>일간 대시보드 보관함</div>
+      <div class="card-body p-2"><div id="archive-daily-list" class="archive-list"><span class="text-muted small">불러오는 중...</span></div></div>
+    </div>
+  </div>
+  <div id="archive-weekly" class="archive-sub" hidden>
+    <div class="row">
+      <div class="col-md-4 col-xl-3">
+        <div class="card">
+          <div class="card-header"><span class="section-icon">📅</span>주간 회차</div>
+          <div class="card-body p-2"><div class="archive-list">{weekly_archive_list}</div></div>
+        </div>
+      </div>
+      <div class="col-md-8 col-xl-9">{weekly_archive_blocks}</div>
+    </div>
+  </div>
+  <div id="archive-monthly" class="archive-sub" hidden>
+    <div class="row">
+      <div class="col-md-4 col-xl-3">
+        <div class="card">
+          <div class="card-header"><span class="section-icon">📅</span>월간 회차</div>
+          <div class="card-body p-2"><div class="archive-list">{monthly_archive_list}</div></div>
+        </div>
+      </div>
+      <div class="col-md-8 col-xl-9">{monthly_archive_blocks}</div>
+    </div>
+  </div>
 </div>
 {_NAV_JS}
 </body>
