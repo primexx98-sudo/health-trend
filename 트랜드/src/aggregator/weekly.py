@@ -119,12 +119,17 @@ def _aggregate_ecommerce_highlights(ecommerce_days, max_per_platform=4):
     return _cap_per_platform(ups) + _cap_per_platform(news)
 
 
+# 베이지안 스무딩 가상표본 수 (online-mall-ranking의 monthly_aggregate.py와 동일 값 사용)
+BAYESIAN_K = 5
+
+
 def _aggregate_ecommerce_rankings(ecommerce_days, top_n=10):
     """일간 대시보드의 '이커머스 판매순위 TOP10'을 기간 단위로 다시 뽑는다.
     online-mall-ranking의 monthly_aggregate.py(aggregate_platform)와 동일한 선정 방식을 차용:
-    단순 평균순위로 정렬하면 1~2일만 반짝 상위권에 든 상품이 표본이 적다는 이유만으로
-    꾸준히 등장한 상품을 제치는 왜곡이 생겨서, 순위 점수(1위=5점~10위=0.5점) 평균×70% +
-    등장률×30%로 가중한 점수로 정렬하고, 최소 등장횟수 미달 상품은 제외한다(부족하면 기준 완화)."""
+    순위 점수(1위=5점~10위=0.5점)를 베이지안 평균으로 집계한다 — 등장횟수가 적을수록
+    점수가 이 플랫폼·기간의 전체 평균 쪽으로 당겨져서, 1~2일만 반짝 상위권에 든 상품이
+    표본 부족에도 불구하고 꾸준히 등장한 상품을 제치는 왜곡을 완화한다. 최소 등장횟수
+    미달 상품은 제외한다(부족하면 기준 완화)."""
     total_days = len(ecommerce_days)
     result = {}
     for platform in PLATFORMS:
@@ -148,6 +153,10 @@ def _aggregate_ecommerce_rankings(ecommerce_days, top_n=10):
             min_appear -= 1
             names = [n for n in counts if counts[n] >= min_appear]
 
+        # 베이지안 스무딩의 사전확률(prior): 이 플랫폼·이 기간의 일별점수 전체 평균
+        total_appearances = sum(counts.values())
+        global_mean_score = (sum(score_sums.values()) / total_appearances) if total_appearances else 2.75
+
         scored = [
             {
                 "name": name,
@@ -158,8 +167,7 @@ def _aggregate_ecommerce_rankings(ecommerce_days, top_n=10):
                 "price": latest[name].get("price"),
                 "url": latest[name].get("url"),
                 "image": latest[name].get("image"),
-                "_score": (score_sums[name] / counts[name]) * 0.7
-                + (counts[name] / total_days * 5 * 0.3 if total_days else 0),
+                "_score": (score_sums[name] + BAYESIAN_K * global_mean_score) / (counts[name] + BAYESIAN_K),
             }
             for name in names
         ]
