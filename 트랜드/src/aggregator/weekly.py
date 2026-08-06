@@ -2,6 +2,7 @@ import glob
 import json
 import logging
 import os
+import re
 import sys
 from datetime import datetime, timedelta
 
@@ -122,6 +123,64 @@ def _aggregate_ecommerce_highlights(ecommerce_days, max_per_platform=4):
 # 베이지안 스무딩 가상표본 수 (online-mall-ranking의 monthly_aggregate.py와 동일 값 사용)
 BAYESIAN_K = 5
 
+# 상품URL에서 플랫폼별 고유 상품코드를 뽑아내는 패턴 (online-mall-ranking의 monthly_aggregate.py와
+# 동일). 상세페이지 제목은 프로모션 문구 때문에 거의 매일 바뀌지만(예: "1일 1정"→"1일1정") URL 속
+# 상품코드는 실제로 다른 상품이 등록되지 않는 한 고정이라 동일 상품 판별에 훨씬 안전하다.
+_PRODUCT_ID_PATTERNS = {
+    "올리브영": re.compile(r"goodsNo=([A-Za-z0-9]+)"),
+    "다이소몰": re.compile(r"[?&]pdNo=(\d+)"),
+    "카카오선물하기": re.compile(r"/product/(\d+)"),
+}
+
+
+def _extract_product_id(url, platform):
+    pattern = _PRODUCT_ID_PATTERNS.get(platform)
+    if pattern is None or not isinstance(url, str):
+        return None
+    m = pattern.search(url)
+    return m.group(1) if m else None
+
+
+def _normalize_product_name(name):
+    """상품URL 파싱 실패 시(수집 실패 등)를 위한 대체 키. 대괄호 프로모션 태그를 통째로
+    제거하고 공백을 모두 없애 "1일 1정"/"1일1정"처럼 표기만 다른 경우를 흡수한다."""
+    if not isinstance(name, str):
+        return ""
+    no_brackets = re.sub(r"\[[^\]]*\]", "", name)
+    return re.sub(r"\s+", "", no_brackets)
+
+
+def _item_keys(item, platform):
+    """항목 하나에서 (id_key, name_key)를 뽑는다. id_key는 상품URL 파싱 실패 시 None."""
+    pid = _extract_product_id(item.get("url"), platform)
+    id_key = f"id::{pid}" if pid else None
+    brand = str(item.get("brand") or "").strip()
+    name_norm = _normalize_product_name(item.get("name", ""))
+    if brand and name_norm.startswith(brand):
+        name_norm = name_norm[len(brand):]
+    name_key = f"name::{brand}::{name_norm}"
+    return id_key, name_key
+
+
+class _UnionFind:
+    """id 키와 이름 키를 같은 그룹으로 묶기 위한 최소 union-find (online-mall-ranking과 동일 구현).
+    상품URL이 있는 날은 id 키로, 없는 날은 이름 키로만 잡히는데, 같은 상품이 어느 날은 URL이
+    있고 어느 날은 없으면 두 키가 한 번이라도 같은 행에서 만나야 병합된다."""
+    def __init__(self):
+        self.parent = {}
+
+    def find(self, x):
+        self.parent.setdefault(x, x)
+        while self.parent[x] != x:
+            self.parent[x] = self.parent[self.parent[x]]
+            x = self.parent[x]
+        return x
+
+    def union(self, a, b):
+        ra, rb = self.find(a), self.find(b)
+        if ra != rb:
+            self.parent[ra] = rb
+
 
 def _aggregate_ecommerce_rankings(ecommerce_days, top_n=10):
     """일간 대시보드의 '이커머스 판매순위 TOP10'을 기간 단위로 다시 뽑는다.
@@ -129,29 +188,40 @@ def _aggregate_ecommerce_rankings(ecommerce_days, top_n=10):
     순위 점수(1위=5점~10위=0.5점)를 베이지안 평균으로 집계한다 — 등장횟수가 적을수록
     점수가 이 플랫폼·기간의 전체 평균 쪽으로 당겨져서, 1~2일만 반짝 상위권에 든 상품이
     표본 부족에도 불구하고 꾸준히 등장한 상품을 제치는 왜곡을 완화한다. 최소 등장횟수
-    미달 상품은 제외한다(부족하면 기준 완화)."""
+    미달 상품은 제외한다(부족하면 기준 완화). 같은 상품이 프로모션 문구 변경으로 여러 항목
+    으로 쪼개지지 않도록 상품URL 코드(우선) 또는 정규화된 이름(대체)으로 그룹핑한다."""
     total_days = len(ecommerce_days)
     result = {}
     for platform in PLATFORMS:
-        rank_sums, score_sums, counts, latest = {}, {}, {}, {}
+        uf = _UnionFind()
+        entries = []
         for _, day_data in ecommerce_days:
             for item in day_data.get(platform, []):
-                name = item.get("name")
-                if not name:
+                if not item.get("name"):
                     continue
-                rank = item.get("rank", 999)
-                rank_sums[name] = rank_sums.get(name, 0) + rank
-                score_sums[name] = score_sums.get(name, 0) + (11 - rank) * 0.5  # 1위=5점...10위=0.5점
-                counts[name] = counts.get(name, 0) + 1
-                latest[name] = item  # 마지막으로 덮어쓴 값 = 기간 내 가장 최근 정보
+                id_key, name_key = _item_keys(item, platform)
+                if id_key:
+                    uf.union(id_key, name_key)
+                entries.append((id_key, name_key, item))
+
+        rank_sums, score_sums, counts, latest, name_votes = {}, {}, {}, {}, {}
+        for id_key, name_key, item in entries:
+            group = uf.find(id_key if id_key else name_key)
+            rank = item.get("rank", 999)
+            rank_sums[group] = rank_sums.get(group, 0) + rank
+            score_sums[group] = score_sums.get(group, 0) + (11 - rank) * 0.5  # 1위=5점...10위=0.5점
+            counts[group] = counts.get(group, 0) + 1
+            latest[group] = item  # 마지막으로 덮어쓴 값 = 기간 내 가장 최근 정보
+            votes = name_votes.setdefault(group, {})
+            votes[item["name"]] = votes.get(item["name"], 0) + 1
 
         # 등장횟수 3회 미만 상품은 제외(1~2회 등장한 상품이 평균순위만으로 상위권에 오르는 것 방지).
         # 단, 필터 후 top_n이 안 채워지면 기준을 3→1로 순차 완화해 최대한 채운다.
         min_appear = min(3, total_days) if total_days else 1
-        names = [n for n in counts if counts[n] >= min_appear]
-        while len(names) < top_n and min_appear > 1:
+        groups = [g for g in counts if counts[g] >= min_appear]
+        while len(groups) < top_n and min_appear > 1:
             min_appear -= 1
-            names = [n for n in counts if counts[n] >= min_appear]
+            groups = [g for g in counts if counts[g] >= min_appear]
 
         # 베이지안 스무딩의 사전확률(prior): 이 플랫폼·이 기간의 일별점수 전체 평균
         total_appearances = sum(counts.values())
@@ -159,17 +229,17 @@ def _aggregate_ecommerce_rankings(ecommerce_days, top_n=10):
 
         scored = [
             {
-                "name": name,
-                "avg_rank": round(rank_sums[name] / counts[name], 1),
-                "days_seen": counts[name],
-                "category": latest[name].get("category"),
-                "brand": latest[name].get("brand"),
-                "price": latest[name].get("price"),
-                "url": latest[name].get("url"),
-                "image": latest[name].get("image"),
-                "_score": (score_sums[name] + BAYESIAN_K * global_mean_score) / (counts[name] + BAYESIAN_K),
+                "name": max(name_votes[g], key=name_votes[g].get),  # 그룹 내 가장 흔한 표기를 대표명으로 사용
+                "avg_rank": round(rank_sums[g] / counts[g], 1),
+                "days_seen": counts[g],
+                "category": latest[g].get("category"),
+                "brand": latest[g].get("brand"),
+                "price": latest[g].get("price"),
+                "url": latest[g].get("url"),
+                "image": latest[g].get("image"),
+                "_score": (score_sums[g] + BAYESIAN_K * global_mean_score) / (counts[g] + BAYESIAN_K),
             }
-            for name in names
+            for g in groups
         ]
         scored.sort(key=lambda x: -x["_score"])
         for it in scored:
