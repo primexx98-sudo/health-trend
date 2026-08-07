@@ -12,7 +12,7 @@ from collectors.news_collector import collect_all_news
 from collectors.overseas_collector import get_overseas_news
 from collectors.ecommerce_collector import get_ecommerce_rankings, attach_rank_changes
 from collectors.law_summary_collector import get_law_weekly_summary
-from generator.dashboard import generate_html
+from generator.dashboard import generate_html, write_archive_files
 
 def setup_logging():
     os.makedirs(LOG_DIR, exist_ok=True)
@@ -266,8 +266,14 @@ def main():
         naver_data, sns_data, news_data, rising_data, overseas_data,
         ecommerce_data=ecommerce_data, naver_prev_data=naver_prev_data,
         law_summary=law_summary, weekly_data=weekly_data, monthly_data=monthly_data,
-        weekly_archive=weekly_archive, monthly_archive=monthly_archive,
     )
+
+    # 보관함 탭의 주간/월간 회차는 대시보드 HTML에 직접 심지 않고, JS가 열람 시점에
+    # fetch로 불러올 정적 데이터 파일(index.json + fragments/*.html)로 별도 기록한다.
+    # OUTPUT_DIR(트랜드/docs)에 쓰면 기존 워크플로가 "cp -r 트랜드/docs/. docs/"로
+    # 그대로 커밋 대상 docs/에 옮겨준다 — naver/ecommerce 스냅샷과 동일한 경로 패턴.
+    write_archive_files(os.path.join(OUTPUT_DIR, "data", "weekly"), weekly_archive, "weekly")
+    write_archive_files(os.path.join(OUTPUT_DIR, "data", "monthly"), monthly_archive, "monthly")
 
     # 일별 대시보드 백업은 cleanup_old_dashboards가 90일로 보관 기간을 관리하므로
     # 여기서는 별도 개수 제한을 두지 않고 실제 존재하는 파일 전부를 노출한다.

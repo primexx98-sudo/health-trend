@@ -41,6 +41,8 @@ _NAV_JS = """\
     })
     .catch(function(){});
 })();
+loadPeriodArchive('weekly');
+loadPeriodArchive('monthly');
 function applyThemeIcon(){
   var isLight = document.documentElement.getAttribute('data-theme') === 'light';
   var icon = document.getElementById('themeToggleIcon');
@@ -72,13 +74,46 @@ function switchArchiveSub(name){
     if (btn) btn.classList.toggle('active', n === name);
   });
 }
-function showArchivePeriod(kind, id){
-  document.querySelectorAll('.archive-period[data-kind="'+kind+'"]').forEach(function(el){
-    el.hidden = el.getAttribute('data-period') !== id;
-  });
-  document.querySelectorAll('.archive-list-item[data-kind="'+kind+'"]').forEach(function(el){
-    el.classList.toggle('active', el.getAttribute('data-period') === id);
-  });
+var _periodArchiveCache = {};
+function loadPeriodArchive(kind){
+  var listEl = document.getElementById('archive-' + kind + '-list');
+  if (!listEl || listEl.dataset.loaded) return;
+  listEl.dataset.loaded = '1';
+  fetch('./data/' + kind + '/index.json?v=' + Date.now())
+    .then(function(r){ return r.json(); })
+    .then(function(items){
+      if (!items || !items.length) {
+        listEl.innerHTML = '<span class="text-muted small">아직 축적된 회차가 없습니다.</span>';
+        return;
+      }
+      listEl.innerHTML = '';
+      items.forEach(function(it, i){
+        var div = document.createElement('div');
+        div.className = 'archive-list-item' + (i === 0 ? ' active' : '');
+        div.textContent = it.label;
+        div.onclick = function(){ selectPeriodArchive(kind, it.id, div); };
+        listEl.appendChild(div);
+      });
+      selectPeriodArchive(kind, items[0].id, listEl.firstChild);
+    })
+    .catch(function(){ listEl.innerHTML = '<span class="text-muted small">불러오기 실패</span>'; });
+}
+function selectPeriodArchive(kind, id, itemEl){
+  var listEl = document.getElementById('archive-' + kind + '-list');
+  if (listEl) {
+    Array.prototype.forEach.call(listEl.children, function(el){
+      el.classList.toggle('active', el === itemEl);
+    });
+  }
+  var contentEl = document.getElementById('archive-' + kind + '-content');
+  if (!contentEl) return;
+  var cacheKey = kind + ':' + id;
+  if (_periodArchiveCache[cacheKey]) { contentEl.innerHTML = _periodArchiveCache[cacheKey]; return; }
+  contentEl.innerHTML = '<span class="text-muted small">불러오는 중...</span>';
+  fetch('./data/' + kind + '/fragments/' + id + '.html?v=' + Date.now())
+    .then(function(r){ return r.text(); })
+    .then(function(html){ _periodArchiveCache[cacheKey] = html; contentEl.innerHTML = html; })
+    .catch(function(){ contentEl.innerHTML = '<span class="text-muted small">불러오기 실패</span>'; });
 }
 (function(){
   var initial = (location.hash || '#daily').slice(1);
@@ -311,30 +346,29 @@ def _render_period_section(data, kind):
   {foodnews_row}"""
 
 
-def _render_archive_list_and_blocks(archive, kind):
-    """보관함 탭의 주간/월간 목록. archive: [(period_id, data), ...] 최신순.
-    목록(클릭용 사이드바)과 본문(전부 미리 렌더링해 hidden으로 끼워둔 뒤 JS로 토글)을 함께 만든다 —
+def write_archive_files(period_dir, archive, kind):
+    """보관함 탭의 주간/월간 회차를 정적 파일로 미리 렌더링해 디스크에 쓴다.
+    index.json(회차 목록)과 fragments/{period_id}.html(회차별 본문)을 매 실행마다 새로 씀 —
+    이 파일들은 JS가 보관함 탭을 열 때 fetch로 그때그때 불러온다(대시보드 HTML에 박아넣지 않음).
+    dashboard_YYYYMMDD.html 백업 페이지는 생성된 뒤 다시 빌드되지 않으므로, 회차 목록을 HTML에
+    직접 심으면 그 페이지를 나중에 열람할 때 빌드 시점의 낡은 목록이 영구히 고정되는 문제가 있었다
+    (예: 재생성된 과거 페이지만 최신 회차를 보여주고, 그렇지 않은 페이지는 오래된 회차에 멈춰있음).
+    정적 데이터 파일로 분리해두면 페이지가 언제 만들어졌든 열람 시점 기준 최신 목록을 항상 보여준다.
     _render_period_section을 그대로 재사용해 렌더링 로직이 두 곳에서 갈라지지 않게 한다."""
-    if not archive:
-        empty = "주간" if kind == "weekly" else "월간"
-        return f'<span class="text-muted small">아직 축적된 {empty} 회차가 없습니다.</span>', ""
-    items, blocks = [], []
-    for i, (period_id, data) in enumerate(archive):
+    import json as _json
+    fragments_dir = os.path.join(period_dir, "fragments")
+    os.makedirs(fragments_dir, exist_ok=True)
+    index = []
+    for period_id, data in archive:
         label = (data.get("period_label") if data else None) or period_id
-        active_cls = " active" if i == 0 else ""
-        hidden_attr = "" if i == 0 else " hidden"
-        items.append(
-            f'<div class="archive-list-item{active_cls}" data-kind="{kind}" data-period="{period_id}" '
-            f'onclick="showArchivePeriod(\'{kind}\',\'{period_id}\')">{label}</div>'
-        )
-        blocks.append(
-            f'<div class="archive-period" data-kind="{kind}" data-period="{period_id}"{hidden_attr}>'
-            f'{_render_period_section(data, kind)}</div>'
-        )
-    return "".join(items), "".join(blocks)
+        index.append({"id": period_id, "label": label})
+        with open(os.path.join(fragments_dir, f"{period_id}.html"), "w", encoding="utf-8") as f:
+            f.write(_render_period_section(data, kind))
+    with open(os.path.join(period_dir, "index.json"), "w", encoding="utf-8") as f:
+        _json.dump(index, f, ensure_ascii=False)
 
 
-def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=None, available_dates=None, ecommerce_data=None, naver_prev_data=None, law_summary=None, weekly_data=None, monthly_data=None, weekly_archive=None, monthly_archive=None):
+def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=None, available_dates=None, ecommerce_data=None, naver_prev_data=None, law_summary=None, weekly_data=None, monthly_data=None):
     if overseas_data is None:
         overseas_data = []
     if ecommerce_data is None:
@@ -528,8 +562,6 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
 
     weekly_html = _render_period_section(weekly_data, "weekly")
     monthly_html = _render_period_section(monthly_data, "monthly")
-    weekly_archive_list, weekly_archive_blocks = _render_archive_list_and_blocks(weekly_archive or [], "weekly")
-    monthly_archive_list, monthly_archive_blocks = _render_archive_list_and_blocks(monthly_archive or [], "monthly")
 
     html = f"""<!DOCTYPE html>
 <html lang="ko" data-bs-theme="dark">
@@ -662,7 +694,6 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .archive-list-item.active {{ background: var(--primary); color: #1e2329; font-weight: 700; }}
   .archive-list-link {{ display: block; padding: 6px 10px; border-radius: 6px; color: var(--body-text); text-decoration: none; font-size: 0.85rem; }}
   .archive-list-link:hover {{ background: var(--surface-elevated); color: var(--primary-text); }}
-  .archive-period[hidden] {{ display: none; }}
   @media (max-width: 576px) {{
     .header {{ padding: 14px 16px; }}
     .header h1 {{ font-size: 1.2rem; }}
@@ -785,10 +816,10 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
       <div class="col-md-4 col-xl-3">
         <div class="card">
           <div class="card-header"><span class="section-icon">📅</span>주간 회차</div>
-          <div class="card-body p-2"><div class="archive-list">{weekly_archive_list}</div></div>
+          <div class="card-body p-2"><div id="archive-weekly-list" class="archive-list"><span class="text-muted small">불러오는 중...</span></div></div>
         </div>
       </div>
-      <div class="col-md-8 col-xl-9">{weekly_archive_blocks}</div>
+      <div class="col-md-8 col-xl-9"><div id="archive-weekly-content"><span class="text-muted small">불러오는 중...</span></div></div>
     </div>
   </div>
   <div id="archive-monthly" class="archive-sub" hidden>
@@ -796,10 +827,10 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
       <div class="col-md-4 col-xl-3">
         <div class="card">
           <div class="card-header"><span class="section-icon">📅</span>월간 회차</div>
-          <div class="card-body p-2"><div class="archive-list">{monthly_archive_list}</div></div>
+          <div class="card-body p-2"><div id="archive-monthly-list" class="archive-list"><span class="text-muted small">불러오는 중...</span></div></div>
         </div>
       </div>
-      <div class="col-md-8 col-xl-9">{monthly_archive_blocks}</div>
+      <div class="col-md-8 col-xl-9"><div id="archive-monthly-content"><span class="text-muted small">불러오는 중...</span></div></div>
     </div>
   </div>
 </div>
