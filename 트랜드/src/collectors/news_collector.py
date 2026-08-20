@@ -319,6 +319,19 @@ def collect_all_news():
             else:
                 general.append(item)
 
+    # 2026-08-20: QUERIES_RESEARCH 여러 검색어를 순서대로 이어붙이기만 해서 쿼리
+    # 순서에 따라 정렬됐음(쿼리 내부는 sort=date로 정렬되지만 쿼리 간 병합은
+    # 안 됐음) — "최신 연구 소식"이라는 이름과 달리 실제로는 최신순이 아니었던
+    # 문제(오늘 기사가 5번째로 밀려 요약 카드 상위 2건에 안 뜨던 사례)를 발견해
+    # 병합 후 발행일 기준으로 다시 정렬.
+    def _pubdate_key(item):
+        try:
+            return parsedate_to_datetime(item.get("pubDate", ""))
+        except Exception:
+            return datetime.min.replace(tzinfo=timezone.utc)
+
+    research.sort(key=_pubdate_key, reverse=True)
+
     logger.info(f"뉴스 최종 - 일반:{len(general)} 연구:{len(research)} 규제:{len(regulatory)}")
     mfds = [r for r in regulatory if "mfds.go.kr" in r.get("link", "")]
 

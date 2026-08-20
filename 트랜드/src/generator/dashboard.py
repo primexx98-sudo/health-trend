@@ -385,8 +385,9 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     _bar_colors = _BAR_COLORS
     no_data = '<span class="text-muted small">데이터 수집 중...</span>'
 
-    # 전일 스냅샷에서 키워드별 순위(1-base)를 미리 뽑아 둠 — 없으면 배지 생략
+    # 전일 스냅샷에서 키워드별 순위(1-base)·검색지수를 미리 뽑아 둠 — 없으면 배지 생략
     _prev_rank = {d["keyword"]: idx + 1 for idx, d in enumerate(naver_prev_data or [])}
+    _prev_ratio = {d["keyword"]: d.get("ratio") for d in (naver_prev_data or [])}
 
     def _naver_badge_str(keyword, cur_rank):
         if not _prev_rank:
@@ -442,9 +443,11 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
         f'<span class="news-date">{n.get("source", "네이버뉴스")} · {n["pubDate"][:16]}</span></div>'
         for n in news_data.get("regulatory", [])
     )
+    # 2026-08-20: 키워드만 나열하면 왜 "급상승"인지 근거가 안 보이고 8개는 너무
+    # 많다는 피드백 — 전일 대비 검색지수 증가폭을 숫자로 함께 보여주고 5개로 축소
     rising_tags = "".join(
-        f'<span class="rising-tag">🔥 {r["keyword"]}</span>'
-        for r in rising_data[:8]
+        f'<span class="rising-tag">🔥 {r["keyword"]} <small>+{r["value"]:.1f}</small></span>'
+        for r in rising_data[:5]
     )
     _ecommerce_platforms = _ECOM_PLATFORMS
 
@@ -490,44 +493,66 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
         return "".join(html for _, html in lines[:5])
 
     def _naver_top_movers():
-        # 2026-07-23: "▲5 키워드"처럼 기호+숫자만 있던 표기를 문장으로 풀어서 표시
+        # 2026-08-20: "N단계 상승"만으로는 몇 위에서 몇 위로 올랐는지, 실제 검색량이
+        # 얼마나 늘었는지 알 수 없다는 피드백 — 순위 변화(prev위→cur위)와 검색지수
+        # 변화(전일→오늘)를 함께 보여줘 근거를 보강
         movers = []
         for i, d in enumerate(naver_data[:15]):
-            prev = _prev_rank.get(d["keyword"])
-            if prev is None:
+            prev_r = _prev_rank.get(d["keyword"])
+            if prev_r is None:
                 continue
-            diff = prev - (i + 1)
+            diff = prev_r - (i + 1)
             if diff > 0:
-                movers.append((diff, d["keyword"]))
+                movers.append((diff, d["keyword"], prev_r, i + 1, _prev_ratio.get(d["keyword"]), d.get("ratio")))
         movers.sort(key=lambda x: -x[0])
         if not movers:
             return no_data
-        return "".join(
-            f'<div class="summary-line">▲ <b>{kw}</b> 검색 순위 {diff}단계 상승</div>' for diff, kw in movers[:3]
-        )
+        lines = []
+        for diff, kw, prev_r, cur_r, prev_ratio, cur_ratio in movers[:3]:
+            ratio_txt = (
+                f' <small>(지수 {prev_ratio:.0f}→{cur_ratio:.0f})</small>'
+                if prev_ratio is not None and cur_ratio is not None else ''
+            )
+            lines.append(f'<div class="summary-line">▲ <b>{kw}</b> 검색 순위 {prev_r}위→{cur_r}위{ratio_txt}</div>')
+        return "".join(lines)
 
     ecommerce_highlights_html = _ecommerce_highlights() or no_data
     naver_movers_html = _naver_top_movers()
+    # 2026-08-20: 제목만 있으면 언제·어디서 나온 소식인지 알 수 없다는 피드백 —
+    # 다른 뉴스 섹션(news-item)과 동일하게 출처·날짜를 함께 표시
     latest_research_html = "".join(
-        f'<div class="summary-line">🔬 {n["title"]}</div>'
+        f'<div class="summary-line">🔬 {n["title"]}'
+        f'<span class="summary-meta"> · {n.get("source", "네이버뉴스")} · {n.get("pubDate", "")[:16]}</span></div>'
         for n in news_data.get("research", [])[:2]
     ) or no_data
 
+    _LAW_BADGE_CLASS = {
+        "시행": "law-badge-enforce", "공포": "law-badge-enforce", "공고": "law-badge-enforce",
+        "예고": "law-badge-notice",
+    }
+
     law_summary = law_summary or {}
     _law_items = law_summary.get("items") or []
-    _law_top_item = _law_items[0] if _law_items else {}
-    _law_key_points = _law_top_item.get("key_points") or []
-    if _law_key_points:
-        # 2026-07-23: 주간 통합 요약(문장형) 대신, 가장 최근 법령 항목의 실제
-        # 핵심내용(①②③, FOODLAW-MONITORING이 이미 생성해둔 값을 그대로 재사용 —
-        # 여기서 추가 AI 호출은 하지 않음)을 그대로 보여주는 방식으로 변경
-        law_summary_html = (
-            f'<div class="summary-line law-item-title">{_law_top_item.get("title", "")}</div>'
-            + "".join(f'<div class="summary-line law-kp-line">{pt}</div>' for pt in _law_key_points[:3])
-        )
+    if _law_items:
+        # 2026-08-20: 주간 통합 요약(AI가 쓴 긴 문단)을 그대로 늘어놓으면 안 읽힌다는
+        # 피드백 — 문단 대신 이번 주 법령 항목을 상태 배지+제목+핵심내용 한 줄로 된
+        # 짧은 목록으로 항상 보여줌(항목별 key_points가 아직 없으면 제목까지만).
+        # FOODLAW-MONITORING이 이미 만들어둔 값을 재사용, 여기서 추가 AI 호출 없음.
+        rows = []
+        for it in _law_items[:3]:
+            status = it.get("status", "")
+            badge_cls = _LAW_BADGE_CLASS.get(status, "law-badge-other")
+            kp = (it.get("key_points") or [None])[0]
+            rows.append(
+                f'<div class="law-item-row">'
+                f'<span class="law-badge {badge_cls}">{status}</span>'
+                f'<span class="law-item-title">{it.get("title", "")}</span>'
+                + (f'<div class="law-kp-line">{kp}</div>' if kp else '')
+                + '</div>'
+            )
+        law_summary_html = "".join(rows)
     else:
-        _law_text = law_summary.get("weekly_summary") or law_summary.get("summary") or ""
-        law_summary_html = f'<div class="summary-line">{_law_text}</div>' if _law_text else no_data
+        law_summary_html = no_data
     law_label = law_summary.get("label", "")
 
     summary_box = f"""
@@ -668,8 +693,16 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .summary-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }}
   .summary-label {{ font-size: 0.78rem; font-weight: 600; color: var(--muted-strong); margin-bottom: 6px; }}
   .summary-line {{ font-size: 0.85rem; padding: 3px 0; color: var(--body-text); }}
-  .law-item-title {{ font-weight: 600; font-size: 0.8rem; color: var(--muted-strong); padding-bottom: 5px; line-height: 1.4; }}
-  .law-kp-line {{ font-size: 0.8rem; line-height: 1.5; padding: 2px 0; }}
+  .law-item-row {{ padding: 6px 0; border-bottom: 1px dashed var(--hairline); }}
+  .law-item-row:last-child {{ border-bottom: none; }}
+  .law-badge {{ display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 1px 7px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }}
+  .law-badge-enforce {{ background: rgba(14,203,129,.15); color: var(--up); }}
+  .law-badge-notice {{ background: rgba(252,213,53,.18); color: var(--primary-text); }}
+  .law-badge-other {{ background: var(--surface-elevated); color: var(--muted); }}
+  .law-item-title {{ font-weight: 600; font-size: 0.82rem; color: var(--body-text); line-height: 1.4; }}
+  .law-kp-line {{ font-size: 0.8rem; line-height: 1.5; padding: 3px 0 0; color: var(--muted-strong); }}
+  .rising-tag small {{ margin-left: 4px; font-weight: 700; color: var(--up); font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }}
+  .summary-meta {{ color: var(--muted); font-size: 0.72rem; }}
   .theme-toggle {{
     background: var(--surface-elevated); border: 1px solid var(--hairline);
     color: var(--body-text); height: 28px; padding: 0 11px; border-radius: 14px;
