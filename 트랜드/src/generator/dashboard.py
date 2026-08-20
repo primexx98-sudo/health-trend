@@ -491,16 +491,21 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     def _ecommerce_highlights():
         # 2026-07-23: "🆕 [올리브영] 상품명"처럼 기호 위주로 압축된 표기 대신,
         # 무슨 일이 있었는지 문장으로 풀어서 한눈에 읽히게 함
+        # 2026-08-20: 상품명을 클릭하면 실제 판매 페이지로 바로 이동하도록 링크화
+        # (이커머스 신규·급등 본문 카드의 .ecom-name과 동일하게 it["url"] 재사용)
         lines = []
         for key, label in _ecommerce_platforms:
             platform = label.split()[-1]
             for it in ecommerce_data.get(key, []):
                 badge = it.get("badge")
+                url = it.get("url") or ""
+                tag = "a" if url else "div"
+                attrs = f' href="{url}" target="_blank" rel="noopener"' if url else ""
                 if badge == "new":
-                    lines.append((0, f'<div class="summary-line">🆕 {platform}에 <b>{it["name"]}</b> 신규 진입</div>'))
+                    lines.append((0, f'<{tag} class="summary-line summary-line-link"{attrs}>🆕 {platform}에 <b>{it["name"]}</b> 신규 진입</{tag}>'))
                 elif badge and badge.startswith("up:") and int(badge.split(":")[1]) >= 3:
                     diff = int(badge.split(":")[1])
-                    lines.append((diff, f'<div class="summary-line">▲ {platform} <b>{it["name"]}</b> 순위 {diff}단계 상승</div>'))
+                    lines.append((diff, f'<{tag} class="summary-line summary-line-link"{attrs}>▲ {platform} <b>{it["name"]}</b> 순위 {diff}단계 상승</{tag}>'))
         lines.sort(key=lambda x: -x[0])
         return "".join(html for _, html in lines[:5])
 
@@ -720,6 +725,9 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .law-kp-line {{ font-size: 0.8rem; line-height: 1.5; padding: 3px 0 0; color: var(--muted-strong); }}
   .rising-tag small {{ margin-left: 4px; font-weight: 700; color: var(--up); font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }}
   .summary-meta {{ color: var(--muted); font-size: 0.72rem; }}
+  .summary-line-link {{ display: block; text-decoration: none; color: inherit; border-radius: 4px; margin: 0 -4px; padding: 3px 4px; }}
+  .summary-line-link:hover {{ background: var(--surface-elevated); }}
+  .summary-line-link:hover b {{ color: var(--primary-text); }}
   .theme-toggle {{
     background: var(--surface-elevated); border: 1px solid var(--hairline);
     color: var(--body-text); height: 28px; padding: 0 11px; border-radius: 14px;
