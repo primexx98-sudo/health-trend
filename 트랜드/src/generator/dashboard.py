@@ -1,7 +1,19 @@
 from datetime import datetime, timezone, timedelta
+import hashlib
 import os
 
 _KST = timezone(timedelta(hours=9))
+
+LAW_MONITOR_URL = "https://primexx98-sudo.github.io/food-monitor-hub/law/"
+
+
+def _law_item_anchor_id(item):
+    """FOODLAW-MONITORING(build_site.py)의 item_anchor_id()와 동일한 알고리즘
+    (url 또는 title을 md5 해시해 앞 10자) — "오늘의 요약"의 법령 항목을 클릭하면
+    법령 모니터의 해당 항목으로 바로 이동하는 딥링크를 만들기 위함. 두 프로젝트가
+    서로 다른 저장소라 한쪽만 바뀌면 링크가 깨지니, 바꿀 때는 반드시 같이 수정."""
+    key = item.get("url") or item.get("title", "")
+    return "law-" + hashlib.md5(key.encode("utf-8")).hexdigest()[:10]
 
 _ECOM_PLATFORMS = [
     ("카카오선물하기", "🎁 카카오 선물하기"),
@@ -543,12 +555,15 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
             status = it.get("status", "")
             badge_cls = _LAW_BADGE_CLASS.get(status, "law-badge-other")
             kp = (it.get("key_points") or [None])[0]
+            # 2026-08-20: 클릭하면 법령 모니터의 해당 항목으로 바로 이동하도록
+            # #law-xxxxx 딥링크 부여(build_site.py의 item_anchor_id()와 동일 알고리즘)
+            anchor = _law_item_anchor_id(it)
             rows.append(
-                f'<div class="law-item-row">'
+                f'<a class="law-item-row" href="{LAW_MONITOR_URL}#{anchor}" target="_blank" rel="noopener">'
                 f'<span class="law-badge {badge_cls}">{status}</span>'
                 f'<span class="law-item-title">{it.get("title", "")}</span>'
                 + (f'<div class="law-kp-line">{kp}</div>' if kp else '')
-                + '</div>'
+                + '</a>'
             )
         law_summary_html = "".join(rows)
     else:
@@ -693,8 +708,10 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .summary-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }}
   .summary-label {{ font-size: 0.78rem; font-weight: 600; color: var(--muted-strong); margin-bottom: 6px; }}
   .summary-line {{ font-size: 0.85rem; padding: 3px 0; color: var(--body-text); }}
-  .law-item-row {{ padding: 6px 0; border-bottom: 1px dashed var(--hairline); }}
+  .law-item-row {{ display: block; padding: 6px 4px; margin: 0 -4px; border-bottom: 1px dashed var(--hairline); border-radius: 4px; text-decoration: none; color: inherit; }}
   .law-item-row:last-child {{ border-bottom: none; }}
+  .law-item-row:hover {{ background: var(--surface-elevated); }}
+  .law-item-row:hover .law-item-title {{ color: var(--primary-text); }}
   .law-badge {{ display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 1px 7px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }}
   .law-badge-enforce {{ background: rgba(14,203,129,.15); color: var(--up); }}
   .law-badge-notice {{ background: rgba(252,213,53,.18); color: var(--primary-text); }}
