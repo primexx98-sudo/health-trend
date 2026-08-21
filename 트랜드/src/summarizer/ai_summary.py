@@ -2,10 +2,34 @@ import json
 import logging
 import os
 import re
+import time
 
 logger = logging.getLogger(__name__)
 
 MODEL = "gemini-flash-latest"  # Google이 유지하는 최신 flash 별칭 — 특정 버전을 박아두면 구버전처럼 신규 사용자 접근이 막힐 수 있어 별칭 사용
+
+# 2026-08-21: Gemini가 "503 UNAVAILABLE (high demand)"를 자주 반환하는 걸 실배포에서
+# 확인(급상승 리포트 6개 카드 중 5개가 한 번의 시도로 이 오류를 맞음) — 일시적 과부하라
+# 짧은 대기 후 재시도하면 회복되는 경우가 많아 재시도 로직을 공용 헬퍼로 둔다.
+_MAX_RETRIES = 2
+_RETRY_DELAYS = [2, 5]  # 재시도 사이 대기(초), 마지막 시도까지 실패하면 포기
+
+
+def _generate_with_retry(client, contents, label):
+    """일시적 API 실패(503 등)에 짧게 재시도. 최종 실패 시 None."""
+    last_error = None
+    for attempt in range(_MAX_RETRIES + 1):
+        try:
+            resp = client.models.generate_content(model=MODEL, contents=contents)
+            return resp.text
+        except Exception as e:
+            last_error = e
+            if attempt < _MAX_RETRIES:
+                delay = _RETRY_DELAYS[attempt]
+                logger.warning(f"AI 생성 실패 [{label}], {delay}초 후 재시도({attempt + 1}/{_MAX_RETRIES}): {e}")
+                time.sleep(delay)
+    logger.error(f"AI 생성 최종 실패 [{label}]: {last_error}")
+    return None
 
 _PROMPT = """당신은 건강기능식품 산업 동향을 정리하는 애널리스트입니다.
 아래는 "{period_label}" 기간 동안 수집된 원본 데이터입니다. 이를 바탕으로 간결한 한국어 요약을 작성하세요.
@@ -70,14 +94,10 @@ def summarize(period_label, material):
         return None
 
     formatted = _format_material(material)
-    try:
-        resp = client.models.generate_content(
-            model=MODEL,
-            contents=_PROMPT.format(period_label=period_label, material=formatted),
-        )
-        text = resp.text
-    except Exception as e:
-        logger.error(f"AI 요약 생성 실패 [{period_label}]: {e}")
+    text = _generate_with_retry(
+        client, _PROMPT.format(period_label=period_label, material=formatted), period_label
+    )
+    if text is None:
         return None
 
     return _parse_response(text)
@@ -113,14 +133,10 @@ def summarize_keyword_issue(name, kind_label, news_titles):
         return None
 
     news_lines = "\n".join(f"- {t}" for t in news_titles[:8])
-    try:
-        resp = client.models.generate_content(
-            model=MODEL,
-            contents=_KEYWORD_PROMPT.format(name=name, kind_label=kind_label, news_lines=news_lines),
-        )
-        text = resp.text
-    except Exception as e:
-        logger.error(f"키워드 이슈 요약 생성 실패 [{name}]: {e}")
+    text = _generate_with_retry(
+        client, _KEYWORD_PROMPT.format(name=name, kind_label=kind_label, news_lines=news_lines), name
+    )
+    if text is None:
         return None
 
     match = re.search(r"\{.*\}", text, re.DOTALL)
