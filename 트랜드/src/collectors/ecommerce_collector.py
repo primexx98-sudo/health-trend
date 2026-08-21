@@ -55,6 +55,29 @@ def get_ecommerce_rankings():
     return result
 
 
+def get_rising_brand_candidates(data, limit=15):
+    """당일 신규진입·순위상승(▲3 이상) 상품에서 브랜드명을 추출해 급상승 브랜드/제품
+    리포트의 검색량 조회 후보로 삼는다. attach_rank_changes()로 badge가 붙은 뒤 호출해야 함.
+    브랜드명 자체에 통계적 의미가 있는 건 아니고, 이커머스에서 눈에 띄게 움직인 상품의
+    브랜드를 시장 신호 후보로만 사용 — 상승폭이 클수록/등장 빈도가 높을수록 가중치 부여."""
+    weights = {}
+    for platform in PLATFORMS:
+        for it in data.get(platform, []):
+            brand = (it.get("brand") or "").strip()
+            if not brand:
+                continue
+            badge = it.get("badge")
+            if badge == "new":
+                weight = 1
+            elif badge and badge.startswith("up:") and int(badge.split(":")[1]) >= 3:
+                weight = 1 + int(badge.split(":")[1])
+            else:
+                continue
+            weights[brand] = weights.get(brand, 0) + weight
+    ranked = sorted(weights.items(), key=lambda x: -x[1])
+    return [brand for brand, _ in ranked[:limit]]
+
+
 def attach_rank_changes(data, prev_data):
     """전일 스냅샷과 비교해 상품별 순위 변동 배지를 붙인다 (상품명+브랜드로 매칭).
     badge: "new" | "same" | "up:N" | "down:N" — prev_data 없으면 아무 배지도 안 붙임."""

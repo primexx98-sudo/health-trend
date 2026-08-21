@@ -22,12 +22,16 @@ jobs:
           python-version: '3.12'
 
       - name: 패키지 설치
-        run: pip install requests beautifulsoup4 lxml translators openpyxl
+        run: pip install requests beautifulsoup4 lxml translators openpyxl google-genai
 
       - name: 트랜드 수집 및 대시보드 생성
         env:
           NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
           NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
+          NAVER_CUSTOMER_ID: ${{ secrets.NAVER_CUSTOMER_ID }}
+          NAVER_ACCESS_LICENSE: ${{ secrets.NAVER_ACCESS_LICENSE }}
+          NAVER_SECRET_KEY: ${{ secrets.NAVER_SECRET_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           cd 트랜드
           python src/main.py

@@ -16,6 +16,7 @@ from aggregator.weekly import (
     _load_json,
     DATA_DIR,
 )
+from aggregator.rising_report import build_period_report
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,10 @@ MONTHLY_DIR = os.path.join(DATA_DIR, "monthly")
 def _month_dates(year, month):
     last_day = calendar.monthrange(year, month)[1]
     return [f"{year}{month:02d}{d:02d}" for d in range(1, last_day + 1)]
+
+
+def _prev_month(year, month):
+    return (year - 1, 12) if month == 1 else (year, month - 1)
 
 
 def build_monthly_summary(year=None, month=None):
@@ -57,6 +62,14 @@ def build_monthly_summary(year=None, month=None):
     ecommerce_rankings = _aggregate_ecommerce_rankings(ecommerce_days)
     foodnews = get_foodnews_monthly(year, month)
 
+    volume_days = [(d, _load_json(os.path.join(DATA_DIR, f"keyword_volume_{d}.json"))) for d in date_strs]
+    volume_days = [(d, v) for d, v in volume_days if v]
+    prev_year, prev_month = _prev_month(year, month)
+    prev_date_strs = _month_dates(prev_year, prev_month)
+    prev_volume_days = [(d, _load_json(os.path.join(DATA_DIR, f"keyword_volume_{d}.json"))) for d in prev_date_strs]
+    prev_volume_days = [(d, v) for d, v in prev_volume_days if v]
+    rising_report = build_period_report(ecommerce_days, volume_days, prev_volume_days)
+
     material = {
         "이번 달 검색 상위 키워드": [f"{k['keyword']} (평균 {k['avg_ratio']:.0f}위)" for k in top_keywords[:15]],
         "이번 달 주요 뉴스": [f"[{n['category']}] {n['title']}" for n in news_highlights[:15]],
@@ -82,6 +95,7 @@ def build_monthly_summary(year=None, month=None):
         "ecommerce_highlights": ecommerce_highlights[:15],
         "ecommerce_rankings": ecommerce_rankings,
         "foodnews": foodnews,
+        "rising_report": rising_report,
         "ai_summary": ai_result,
     }
 

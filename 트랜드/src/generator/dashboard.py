@@ -70,7 +70,7 @@ function toggleTheme(){
 }
 applyThemeIcon();
 function switchTab(name){
-  ['daily','weekly','monthly','archive'].forEach(function(n){
+  ['daily','weekly','monthly','rising','archive'].forEach(function(n){
     var panel = document.getElementById('tab-' + n);
     if (panel) panel.hidden = (n !== name);
     var btn = document.querySelector('.tab-btn[data-tab="' + n + '"]');
@@ -83,6 +83,14 @@ function switchArchiveSub(name){
     var panel = document.getElementById('archive-' + n);
     if (panel) panel.hidden = (n !== name);
     var btn = document.querySelector('.archive-sub-btn[data-sub="' + n + '"]');
+    if (btn) btn.classList.toggle('active', n === name);
+  });
+}
+function switchRisingSub(name){
+  ['daily','weekly','monthly'].forEach(function(n){
+    var panel = document.getElementById('rising-' + n);
+    if (panel) panel.hidden = (n !== name);
+    var btn = document.querySelector('.rising-sub-btn[data-sub="' + n + '"]');
     if (btn) btn.classList.toggle('active', n === name);
   });
 }
@@ -129,7 +137,7 @@ function selectPeriodArchive(kind, id, itemEl){
 }
 (function(){
   var initial = (location.hash || '#daily').slice(1);
-  if (['daily','weekly','monthly','archive'].indexOf(initial) === -1) initial = 'daily';
+  if (['daily','weekly','monthly','rising','archive'].indexOf(initial) === -1) initial = 'daily';
   switchTab(initial);
 })();
 </script>"""
@@ -358,6 +366,100 @@ def _render_period_section(data, kind):
   {foodnews_row}"""
 
 
+def _rising_trend_svg(trend):
+    """1년 쿼리 그래프 — 외부 차트 라이브러리 없이 인라인 SVG 폴리라인으로 그린다."""
+    if not trend or len(trend) < 2:
+        return ""
+    w, h, pad = 220, 46, 4
+    values = [p["ratio"] for p in trend]
+    vmin, vmax = min(values), max(values)
+    span = (vmax - vmin) or 1
+    n = len(values)
+    points = []
+    for i, v in enumerate(values):
+        x = pad + (w - 2 * pad) * i / (n - 1)
+        y = h - pad - (h - 2 * pad) * (v - vmin) / span
+        points.append(f"{x:.1f},{y:.1f}")
+    poly = " ".join(points)
+    return (
+        f'<svg viewBox="0 0 {w} {h}" class="rising-trend-svg" preserveAspectRatio="none">'
+        f'<polyline points="{poly}" fill="none" stroke="var(--up)" stroke-width="2"/>'
+        f'</svg>'
+    )
+
+
+def _rising_demo_bars(demo_bars):
+    """연령대x성별 검색 비중 막대 — 남성(파랑)/여성(청록) 2색."""
+    if not demo_bars:
+        return ""
+    max_v = max((max(row.get("m", 0), row.get("f", 0)) for row in demo_bars), default=0) or 1
+    rows = []
+    for row in demo_bars:
+        m_pct = row.get("m", 0) / max_v * 100
+        f_pct = row.get("f", 0) / max_v * 100
+        rows.append(
+            f'<div class="rising-demo-row">'
+            f'<span class="rising-demo-age">{row["age"]}</span>'
+            f'<div class="rising-demo-bar-wrap">'
+            f'<div class="rising-demo-bar rising-demo-m" style="width:{m_pct:.0f}%" title="남성"></div>'
+            f'<div class="rising-demo-bar rising-demo-f" style="width:{f_pct:.0f}%" title="여성"></div>'
+            f'</div></div>'
+        )
+    return "".join(rows)
+
+
+def _rising_card_html(card, rank):
+    issue_html = "".join(
+        f'<div class="summary-line">・ {b}</div>' for b in (card.get("issue_bullets") or [])
+    ) or '<span class="text-muted small">근거 자료 부족으로 이슈 요약 생략</span>'
+
+    brands = card.get("top_brands") or []
+    brands_html = " / ".join(brands) if brands else '<span class="text-muted small">매칭 상품 없음</span>'
+
+    trend_svg = _rising_trend_svg(card.get("trend"))
+    chart_block = (
+        f'<div class="rising-card-chart">{trend_svg}<div class="rising-chart-label">최근 1년 검색 추이</div></div>'
+        if trend_svg else ""
+    )
+
+    demo_bars_html = _rising_demo_bars(card.get("demo_bars"))
+    demo_label = card.get("demo_top_label")
+    demo_highlight = f'<div class="rising-demo-highlight">{demo_label}</div>' if demo_label else ""
+    demo_block = f'<div class="rising-card-demo">{demo_bars_html}{demo_highlight}</div>' if demo_bars_html else ""
+
+    return f"""
+  <div class="rising-card">
+    <div class="rising-card-head"><span class="rank">{rank}</span><span class="rising-card-name">{card["name"]}</span></div>
+    <div class="rising-card-volume">{card["total"]:,.0f}<small>월간 검색량(PC {card.get("pc", 0):,.0f} · 모바일 {card.get("mobile", 0):,.0f})</small></div>
+    <div class="rising-card-row"><span class="rising-row-label">상위 브랜드</span>{brands_html}</div>
+    <div class="rising-card-issue"><div class="rising-row-label">이슈 및 현황</div>{issue_html}</div>
+    {chart_block}
+    {demo_block}
+  </div>"""
+
+
+def _render_rising_report_section(report):
+    """급상승 원료/브랜드·제품 리포트 — 일간/주간/월간 공용 렌더러."""
+    no_data = '<span class="text-muted small">아직 축적된 데이터가 없습니다 — 검색량 스냅샷이 쌓이면 표시됩니다.</span>'
+
+    ingredients = (report or {}).get("ingredients") or []
+    brands = (report or {}).get("brands") or []
+
+    ing_cards = "".join(_rising_card_html(c, i + 1) for i, c in enumerate(ingredients)) or no_data
+    brand_cards = "".join(_rising_card_html(c, i + 1) for i, c in enumerate(brands)) or no_data
+
+    return f"""
+  <div class="card mb-3">
+    <div class="card-header"><span class="section-icon">🔥</span>급상승 원료</div>
+    <div class="card-body p-2"><div class="rising-grid">{ing_cards}</div></div>
+  </div>
+  <div class="card mb-3">
+    <div class="card-header"><span class="section-icon">🔥</span>급상승 브랜드/제품</div>
+    <div class="card-body p-2"><div class="rising-grid">{brand_cards}</div></div>
+  </div>
+  <div class="card-source px-2 pb-3">검색량: 네이버 검색광고 키워드도구(월간 PC+모바일 검색수) · 성별/연령: 네이버 데이터랩(최근 3개월 평균 상대지수) · 이슈 요약: Gemini AI(수집된 뉴스 기반, 자료에 없는 내용은 생성하지 않음)</div>"""
+
+
 def write_archive_files(period_dir, archive, kind):
     """보관함 탭의 주간/월간 회차를 정적 파일로 미리 렌더링해 디스크에 쓴다.
     index.json(회차 목록)과 fragments/{period_id}.html(회차별 본문)을 매 실행마다 새로 씀 —
@@ -380,7 +482,7 @@ def write_archive_files(period_dir, archive, kind):
         _json.dump(index, f, ensure_ascii=False)
 
 
-def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=None, available_dates=None, ecommerce_data=None, naver_prev_data=None, law_summary=None, weekly_data=None, monthly_data=None):
+def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=None, available_dates=None, ecommerce_data=None, naver_prev_data=None, law_summary=None, weekly_data=None, monthly_data=None, rising_report=None):
     if overseas_data is None:
         overseas_data = []
     if ecommerce_data is None:
@@ -608,6 +710,10 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     weekly_html = _render_period_section(weekly_data, "weekly")
     monthly_html = _render_period_section(monthly_data, "monthly")
 
+    rising_daily_html = _render_rising_report_section(rising_report)
+    rising_weekly_html = _render_rising_report_section((weekly_data or {}).get("rising_report"))
+    rising_monthly_html = _render_rising_report_section((monthly_data or {}).get("rising_report"))
+
     html = f"""<!DOCTYPE html>
 <html lang="ko" data-bs-theme="dark">
 <head>
@@ -752,6 +858,26 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .archive-list-item.active {{ background: var(--primary); color: #1e2329; font-weight: 700; }}
   .archive-list-link {{ display: block; padding: 6px 10px; border-radius: 6px; color: var(--body-text); text-decoration: none; font-size: 0.85rem; }}
   .archive-list-link:hover {{ background: var(--surface-elevated); color: var(--primary-text); }}
+  .rising-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }}
+  .rising-card {{ background: var(--surface-elevated); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }}
+  .rising-card-head {{ display: flex; align-items: center; gap: 8px; }}
+  .rising-card-name {{ font-weight: 700; font-size: 1rem; color: var(--body-text); }}
+  .rising-card-volume {{ font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; font-weight: 700; color: var(--primary-text); }}
+  .rising-card-volume small {{ display: block; font-weight: 400; font-size: 0.68rem; color: var(--muted); font-family: 'Inter', sans-serif; margin-top: 2px; }}
+  .rising-row-label {{ display: block; font-size: 0.72rem; font-weight: 600; color: var(--muted-strong); margin-bottom: 2px; }}
+  .rising-card-row {{ font-size: 0.85rem; }}
+  .rising-card-issue {{ border-top: 1px dashed var(--hairline); padding-top: 6px; }}
+  .rising-card-chart {{ border-top: 1px dashed var(--hairline); padding-top: 6px; }}
+  .rising-trend-svg {{ width: 100%; height: 46px; display: block; }}
+  .rising-chart-label {{ font-size: 0.68rem; color: var(--muted); margin-top: 2px; }}
+  .rising-card-demo {{ border-top: 1px dashed var(--hairline); padding-top: 6px; }}
+  .rising-demo-row {{ display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }}
+  .rising-demo-age {{ width: 42px; font-size: 0.72rem; color: var(--muted-strong); flex-shrink: 0; }}
+  .rising-demo-bar-wrap {{ flex: 1; display: flex; gap: 2px; height: 10px; }}
+  .rising-demo-bar {{ height: 10px; border-radius: 2px; }}
+  .rising-demo-m {{ background: var(--info); }}
+  .rising-demo-f {{ background: var(--turquoise); }}
+  .rising-demo-highlight {{ margin-top: 4px; font-size: 0.76rem; font-weight: 600; color: var(--up); }}
   @media (max-width: 576px) {{
     .header {{ padding: 14px 16px; }}
     .header h1 {{ font-size: 1.2rem; }}
@@ -762,6 +888,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     .ecom-thumb {{ width: 40px; height: 40px; }}
     .ecom-name {{ font-size: 0.8rem; }}
     .summary-grid {{ grid-template-columns: 1fr; }}
+    .rising-grid {{ grid-template-columns: 1fr; }}
   }}
 </style>
 </head>
@@ -777,6 +904,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
         <button class="tab-btn" data-tab="daily" onclick="switchTab('daily')">일간</button>
         <button class="tab-btn" data-tab="weekly" onclick="switchTab('weekly')">주간</button>
         <button class="tab-btn" data-tab="monthly" onclick="switchTab('monthly')">월간</button>
+        <button class="tab-btn" data-tab="rising" onclick="switchTab('rising')">🔥급상승</button>
         <button class="tab-btn" data-tab="archive" onclick="switchTab('archive')">보관함</button>
       </div>
       <select id="date-select" class="date-select" title="과거 날짜 조회"></select>
@@ -856,6 +984,16 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
 </div>
 <div id="tab-monthly" class="tab-panel container-fluid px-4" hidden>
   {monthly_html}
+</div>
+<div id="tab-rising" class="tab-panel container-fluid px-4" hidden>
+  <div class="archive-subnav">
+    <button class="tab-btn rising-sub-btn active" data-sub="daily" onclick="switchRisingSub('daily')">일간</button>
+    <button class="tab-btn rising-sub-btn" data-sub="weekly" onclick="switchRisingSub('weekly')">주간</button>
+    <button class="tab-btn rising-sub-btn" data-sub="monthly" onclick="switchRisingSub('monthly')">월간</button>
+  </div>
+  <div id="rising-daily" class="archive-sub">{rising_daily_html}</div>
+  <div id="rising-weekly" class="archive-sub" hidden>{rising_weekly_html}</div>
+  <div id="rising-monthly" class="archive-sub" hidden>{rising_monthly_html}</div>
 </div>
 <div id="tab-archive" class="tab-panel container-fluid px-4" hidden>
   <div class="archive-subnav">

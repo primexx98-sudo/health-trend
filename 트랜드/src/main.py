@@ -12,6 +12,7 @@ from collectors.news_collector import collect_all_news
 from collectors.overseas_collector import get_overseas_news
 from collectors.ecommerce_collector import get_ecommerce_rankings, attach_rank_changes
 from collectors.law_summary_collector import get_law_weekly_summary
+from aggregator.rising_report import collect_today_volumes, build_report
 from generator.dashboard import generate_html, write_archive_files
 
 def setup_logging():
@@ -197,6 +198,38 @@ def save_ecommerce_snapshot(data_dir, date_str, ecommerce_data):
     with open(path, "w", encoding="utf-8") as f:
         _json.dump(ecommerce_data, f, ensure_ascii=False)
 
+def load_keyword_volume_snapshot(data_dir, date_str):
+    path = os.path.join(data_dir, f"keyword_volume_{date_str}.json")
+    if not os.path.exists(path):
+        return None
+    try:
+        import json as _json
+        with open(path, "r", encoding="utf-8") as f:
+            return _json.load(f)
+    except Exception:
+        return None
+
+def save_keyword_volume_snapshot(data_dir, date_str, volumes):
+    import json as _json
+    os.makedirs(data_dir, exist_ok=True)
+    path = os.path.join(data_dir, f"keyword_volume_{date_str}.json")
+    with open(path, "w", encoding="utf-8") as f:
+        _json.dump(volumes, f, ensure_ascii=False)
+
+def cleanup_old_keyword_volume_snapshots(data_dir, keep_days=90):
+    cutoff = datetime.now() - timedelta(days=keep_days)
+    removed = 0
+    for fpath in glob.glob(os.path.join(data_dir, "keyword_volume_????????.json")):
+        try:
+            date_str = os.path.basename(fpath)[len("keyword_volume_"):-len(".json")]
+            if datetime.strptime(date_str, "%Y%m%d") < cutoff:
+                os.remove(fpath)
+                removed += 1
+        except Exception:
+            pass
+    if removed:
+        logging.getLogger("main").info(f"오래된 검색량(급상승 리포트) 스냅샷 {removed}개 삭제")
+
 def cleanup_old_ecommerce_snapshots(data_dir, keep_days=90):
     cutoff = datetime.now() - timedelta(days=keep_days)
     removed = 0
@@ -252,6 +285,11 @@ def main():
     ecommerce_prev_data = load_ecommerce_snapshot(_committed_data_dir, yesterday_str)
     ecommerce_data = attach_rank_changes(ecommerce_data, ecommerce_prev_data)
 
+    print("[+] 급상승 원료/브랜드 리포트 수집 중...")
+    prev_keyword_volumes = load_keyword_volume_snapshot(_committed_data_dir, yesterday_str)
+    ingredient_volumes, brand_volumes, brand_candidates, today_keyword_volumes = collect_today_volumes(ecommerce_data)
+    rising_report = build_report(ecommerce_data, today_keyword_volumes, prev_keyword_volumes, brand_candidates)
+
     # 주간/월간 탭 — weekly.yml/monthly.yml이 각자 커밋해둔 최신 집계를 읽어 반영.
     # 아직 한 번도 안 돌았으면 None → dashboard.py가 "축적 중" 빈 상태로 표시.
     weekly_data = load_latest_period_snapshot(os.path.join(_committed_data_dir, "weekly"), "weekly")
@@ -266,6 +304,7 @@ def main():
         naver_data, sns_data, news_data, rising_data, overseas_data,
         ecommerce_data=ecommerce_data, naver_prev_data=naver_prev_data,
         law_summary=law_summary, weekly_data=weekly_data, monthly_data=monthly_data,
+        rising_report=rising_report,
     )
 
     # 보관함 탭의 주간/월간 회차는 대시보드 HTML에 직접 심지 않고, JS가 열람 시점에
@@ -317,6 +356,12 @@ def main():
     _snapshot_dir = os.path.join(OUTPUT_DIR, "data")
     save_digest_snapshot(_snapshot_dir, date_str, sns_data, news_data, rising_data, law_summary)
     cleanup_old_digests(_snapshot_dir)
+
+    # 검색량 스냅샷 저장 (급상승 원료/브랜드 리포트의 전일·기간 비교 재료)
+    if today_keyword_volumes:
+        _snapshot_dir = os.path.join(OUTPUT_DIR, "data")
+        save_keyword_volume_snapshot(_snapshot_dir, date_str, today_keyword_volumes)
+        cleanup_old_keyword_volume_snapshots(_snapshot_dir)
 
     logger.info(f"완료: {index_path}")
     print(f"완료! index.html 업데이트됨 (백업: dashboard_{date_str}.html)")

@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 트랜드/src
 from collectors.ecommerce_collector import PLATFORMS
 from summarizer.ai_summary import summarize
+from aggregator.rising_report import build_period_report
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,14 @@ WEEKLY_DIR = os.path.join(DATA_DIR, "weekly")
 def _week_dates(iso_year, iso_week):
     monday = datetime.fromisocalendar(iso_year, iso_week, 1)
     return [(monday + timedelta(days=i)).strftime("%Y%m%d") for i in range(7)]
+
+
+def _prev_week_dates(iso_year, iso_week):
+    """직전 ISO 주의 날짜 목록 — 급상승 리포트의 전주 대비 검색량 비교 기준."""
+    monday = datetime.fromisocalendar(iso_year, iso_week, 1)
+    prev_monday = monday - timedelta(days=7)
+    py, pw, _ = prev_monday.isocalendar()
+    return _week_dates(py, pw)
 
 
 def _load_json(path):
@@ -275,6 +284,13 @@ def build_weekly_summary(iso_year=None, iso_week=None):
     ecommerce_highlights = _aggregate_ecommerce_highlights(ecommerce_days)
     ecommerce_rankings = _aggregate_ecommerce_rankings(ecommerce_days)
 
+    volume_days = [(d, _load_json(os.path.join(DATA_DIR, f"keyword_volume_{d}.json"))) for d in date_strs]
+    volume_days = [(d, v) for d, v in volume_days if v]
+    prev_date_strs = _prev_week_dates(iso_year, iso_week)
+    prev_volume_days = [(d, _load_json(os.path.join(DATA_DIR, f"keyword_volume_{d}.json"))) for d in prev_date_strs]
+    prev_volume_days = [(d, v) for d, v in prev_volume_days if v]
+    rising_report = build_period_report(ecommerce_days, volume_days, prev_volume_days)
+
     material = {
         "이번 주 검색 상위 키워드": [f"{k['keyword']} (평균 {k['avg_ratio']:.0f}위)" for k in top_keywords[:10]],
         "이번 주 주요 뉴스": [f"[{n['category']}] {n['title']}" for n in news_highlights[:10]],
@@ -297,6 +313,7 @@ def build_weekly_summary(iso_year=None, iso_week=None):
         "news_highlights": news_highlights[:10],
         "ecommerce_highlights": ecommerce_highlights[:10],
         "ecommerce_rankings": ecommerce_rankings,
+        "rising_report": rising_report,
         "ai_summary": ai_result,
     }
 

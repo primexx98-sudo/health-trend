@@ -81,3 +81,56 @@ def summarize(period_label, material):
         return None
 
     return _parse_response(text)
+
+
+_KEYWORD_PROMPT = """당신은 건강기능식품 마케팅 동향을 분석하는 애널리스트입니다.
+아래는 "{name}"({kind_label})에 대해 최근 수집된 뉴스 제목입니다. 이 자료만 근거로
+왜 이 키워드의 검색량이 늘고 있는지 짧게 분석하세요.
+
+[뉴스 제목]
+{news_lines}
+
+주의사항:
+- 자료에 없는 내용(구체적인 방송 편성, 인플루언서 이름, 광고 캠페인 등)은 추측해서
+  지어내지 마세요 — 자료에 실제로 나온 내용만 근거로 쓰세요.
+- 근거가 부족하면 억지로 만들지 말고 있는 그대로("최근 언급이 늘어난 배경은 자료만으로는
+  확인되지 않음" 등)를 짧게 쓰세요.
+
+다음 JSON 형식으로만 답하세요(다른 텍스트 없이):
+{{"bullets": ["핵심 포인트 1", "핵심 포인트 2"]}}
+"""
+
+
+def summarize_keyword_issue(name, kind_label, news_titles):
+    """급상승 원료/브랜드 카드의 '이슈 및 현황' 텍스트를 생성한다.
+    name: 원료명 또는 브랜드/제품명. kind_label: "원료" | "브랜드/제품".
+    news_titles: 그 키워드로 검색한 최근 뉴스 제목 리스트.
+    반환: [str, ...] | None (키 미설정·자료 없음·API 실패 시)"""
+    client = _client()
+    if client is None:
+        return None
+    if not news_titles:
+        return None
+
+    news_lines = "\n".join(f"- {t}" for t in news_titles[:8])
+    try:
+        resp = client.models.generate_content(
+            model=MODEL,
+            contents=_KEYWORD_PROMPT.format(name=name, kind_label=kind_label, news_lines=news_lines),
+        )
+        text = resp.text
+    except Exception as e:
+        logger.error(f"키워드 이슈 요약 생성 실패 [{name}]: {e}")
+        return None
+
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if not match:
+        return None
+    try:
+        parsed = json.loads(match.group(0))
+    except Exception:
+        return None
+    bullets = parsed.get("bullets")
+    if not isinstance(bullets, list):
+        return None
+    return [str(b) for b in bullets]

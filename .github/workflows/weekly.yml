@@ -27,6 +27,8 @@ jobs:
       - name: 주간 집계 생성
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
+          NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
         run: |
           cd 트랜드
           python src/aggregator/weekly.py
