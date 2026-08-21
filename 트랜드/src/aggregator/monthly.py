@@ -13,6 +13,7 @@ from aggregator.weekly import (
     _aggregate_news_highlights,
     _aggregate_ecommerce_highlights,
     _aggregate_ecommerce_rankings,
+    _search_sales_gap_lines,
     _load_json,
     DATA_DIR,
 )
@@ -79,6 +80,16 @@ def build_monthly_summary(year=None, month=None):
         ],
         "식품저널 건강기능식품 뉴스": [it["title"] for it in foodnews.get("건강기능식품", [])],
         "식품저널 신상품 소식": [it["title"] for it in foodnews.get("신상품", [])],
+        "이번 달 급상승 원료": [
+            f"{c['name']} (검색량 {c['total']:.0f}, 상위 브랜드: {', '.join(c['top_brands']) or '없음'})"
+            for c in (rising_report or {}).get("ingredients", [])
+        ],
+        "이번 달 급상승 브랜드/제품": [
+            f"{c['name']} (검색량 {c['total']:.0f}, 상위 브랜드: {', '.join(c['top_brands']) or '없음'})"
+            for c in (rising_report or {}).get("brands", [])
+        ],
+        "검색은 늘었지만 대표 판매상품이 없는 키워드(신제품 기회 후보)":
+            _search_sales_gap_lines(top_keywords, ecommerce_rankings, top_n=20, show_n=8),
     }
     ai_result = summarize(label, material)
 

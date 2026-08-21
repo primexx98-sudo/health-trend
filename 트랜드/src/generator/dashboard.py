@@ -182,6 +182,24 @@ def _render_period_section(data, kind):
     else:
         ai_html = f'<span class="text-muted small">AI 요약을 생성하지 못했습니다(데이터 부족 또는 API 미설정) — 아래 집계 데이터는 정상 표시됩니다.</span>'
 
+    product_ideas = (ai or {}).get("product_ideas") or []
+    idea_cards = "".join(
+        f'<div class="idea-card">'
+        f'<div class="idea-name">{idea["name"]}</div>'
+        f'<div class="idea-concept">{idea["concept"]}</div>'
+        + (f'<div class="idea-rationale">근거: {idea["rationale"]}</div>' if idea.get("rationale") else "")
+        + '</div>'
+        for idea in product_ideas
+    )
+    idea_row = f"""
+  <div class="card mb-3">
+    <div class="card-header"><span class="section-icon">💡</span>{empty_period} 신제품 제안 (AI){f" ({len(product_ideas)}건)" if product_ideas else ""}</div>
+    <div class="card-body p-2">
+      {f'<div class="idea-grid">{idea_cards}</div>' if product_ideas else '<span class="text-muted small">이번 기간엔 근거 신호가 부족해 제안된 신제품 콘셉트가 없습니다.</span>'}
+      <div class="card-source">근거: 급상승 원료/브랜드 리포트 + 검색↔판매 갭 분석 — AI(Gemini)가 실제 자료를 바탕으로만 제안, 근거 부족 시 개수를 줄임</div>
+    </div>
+  </div>""" if ai else ""
+
     top_keywords = data.get("top_keywords", [])
     keyword_rows = "".join(
         f'<div class="summary-line">{i+1}. <b>{k["keyword"]}</b> <span class="text-muted small">(평균 {k["avg_ratio"]:.0f})</span></div>'
@@ -341,6 +359,7 @@ def _render_period_section(data, kind):
       <div class="card-source">집계 대상: {days_collected}일치 원본 데이터 · AI 요약: Gemini API</div>
     </div>
   </div>
+  {idea_row}
   <div class="row">
     <div class="col-md-4">
       <div class="card">
@@ -878,6 +897,11 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .rising-demo-m {{ background: var(--info); }}
   .rising-demo-f {{ background: var(--turquoise); }}
   .rising-demo-highlight {{ margin-top: 4px; font-size: 0.76rem; font-weight: 600; color: var(--up); }}
+  .idea-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }}
+  .idea-card {{ background: var(--surface-elevated); border: 1px solid var(--primary); border-radius: 10px; padding: 14px; }}
+  .idea-name {{ font-weight: 700; font-size: 1rem; color: var(--primary-text); margin-bottom: 6px; }}
+  .idea-concept {{ font-size: 0.86rem; color: var(--body-text); line-height: 1.5; margin-bottom: 8px; }}
+  .idea-rationale {{ font-size: 0.76rem; color: var(--muted-strong); border-top: 1px dashed var(--hairline); padding-top: 6px; }}
   @media (max-width: 576px) {{
     .header {{ padding: 14px 16px; }}
     .header h1 {{ font-size: 1.2rem; }}
@@ -889,6 +913,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     .ecom-name {{ font-size: 0.8rem; }}
     .summary-grid {{ grid-template-columns: 1fr; }}
     .rising-grid {{ grid-template-columns: 1fr; }}
+    .idea-grid {{ grid-template-columns: 1fr; }}
   }}
 </style>
 </head>

@@ -45,8 +45,16 @@ _PROMPT = """당신은 건강기능식품 산업 동향을 정리하는 애널�
 - "이커머스 동향"의 "신규진입"은 그 몰에 상시적으로 발생하는 신규 상품 등록일 뿐, 그 자체로 산업 트렌드나 의미 있는 변화를 뜻하지 않습니다. 특정 유통채널(예: 다이소몰)에 신규진입이 몰려있다고 해서 "그 채널 중심으로 신규 입점이 확대되고 있다" 같은 트렌드성 주장을 하지 마세요.
 - 실제로 근거 있는 신호는 순위 상승(예: "▲4")처럼 기존 순위에서 올라간 경우입니다. 신규진입은 트렌드 주장 없이 사실만 나열하는 정도로만 언급하세요.
 
+추가로, 아래 자료 중 "급상승 원료"·"급상승 브랜드/제품"·"검색은 늘었지만 대표 판매상품이 없는
+키워드" 항목을 근거로 이 기간에 검토해볼 만한 신제품 콘셉트를 최대 3개 제안하세요.
+- 반드시 위 자료에 실제로 있는 신호(급상승 원료명, 검색-판매 갭 키워드 등)를 근거로 삼으세요.
+- 근거로 삼을 만한 신호가 부족하면 억지로 개수를 채우지 말고 0~1개만 제안해도 됩니다.
+- rationale에는 어떤 자료의 어떤 신호를 근거로 했는지 구체적으로 쓰세요(예: "젖산마그네슘 검색량
+  급상승 + 검색-판매 갭에 해당 원료 미노출").
+
 다음 JSON 형식으로만 답하세요(다른 텍스트 없이):
-{{"summary": "2~3문장의 전체 요약", "key_points": ["핵심 포인트 1", "핵심 포인트 2", "핵심 포인트 3"]}}
+{{"summary": "2~3문장의 전체 요약", "key_points": ["핵심 포인트 1", "핵심 포인트 2", "핵심 포인트 3"],
+"product_ideas": [{{"name": "제품 콘셉트명", "concept": "1~2문장 제품 설명", "rationale": "근거가 된 구체적 데이터 신호"}}]}}
 """
 
 
@@ -83,7 +91,21 @@ def _parse_response(text):
         return None
     if not isinstance(parsed.get("summary"), str) or not isinstance(parsed.get("key_points"), list):
         return None
-    return {"summary": parsed["summary"], "key_points": [str(p) for p in parsed["key_points"]]}
+
+    product_ideas = []
+    for idea in parsed.get("product_ideas") or []:
+        if isinstance(idea, dict) and idea.get("name") and idea.get("concept"):
+            product_ideas.append({
+                "name": str(idea["name"]),
+                "concept": str(idea["concept"]),
+                "rationale": str(idea.get("rationale", "")),
+            })
+
+    return {
+        "summary": parsed["summary"],
+        "key_points": [str(p) for p in parsed["key_points"]],
+        "product_ideas": product_ideas,
+    }
 
 
 def summarize(period_label, material):

@@ -257,6 +257,20 @@ def _aggregate_ecommerce_rankings(ecommerce_days, top_n=10):
     return result
 
 
+def _search_sales_gap_lines(top_keywords, ecommerce_rankings, top_n=15, show_n=6):
+    """검색 상위 키워드 중 판매순위 TOP10 상품명에 등장하지 않는 키워드 — "신제품 제안"
+    AI 프롬프트의 근거 자료용(대시보드 렌더링용 HTML 버전은 dashboard.py에 별도로 있음,
+    여기는 AI material 텍스트만 필요해 가볍게 재계산)."""
+    product_names = " ".join(
+        it.get("name", "") for items in ecommerce_rankings.values() for it in items
+    )
+    gaps = [
+        f"{i + 1}위 {k['keyword']}" for i, k in enumerate(top_keywords[:top_n])
+        if k["keyword"] not in product_names
+    ]
+    return gaps[:show_n]
+
+
 def build_weekly_summary(iso_year=None, iso_week=None):
     if iso_year is None or iso_week is None:
         target = datetime.now() - timedelta(days=1)  # 실행일 전날 = 직전 완료된 주 안의 날짜
@@ -298,6 +312,16 @@ def build_weekly_summary(iso_year=None, iso_week=None):
             f"{e['platform']} " + ("신규진입: " if e['kind'] == "new" else "순위상승: ") + e['name']
             for e in ecommerce_highlights[:10]
         ],
+        "이번 주 급상승 원료": [
+            f"{c['name']} (검색량 {c['total']:.0f}, 상위 브랜드: {', '.join(c['top_brands']) or '없음'})"
+            for c in (rising_report or {}).get("ingredients", [])
+        ],
+        "이번 주 급상승 브랜드/제품": [
+            f"{c['name']} (검색량 {c['total']:.0f}, 상위 브랜드: {', '.join(c['top_brands']) or '없음'})"
+            for c in (rising_report or {}).get("brands", [])
+        ],
+        "검색은 늘었지만 대표 판매상품이 없는 키워드(신제품 기회 후보)":
+            _search_sales_gap_lines(top_keywords, ecommerce_rankings),
     }
     ai_result = summarize(label, material)
 
