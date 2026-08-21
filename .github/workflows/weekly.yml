@@ -22,7 +22,7 @@ jobs:
           python-version: '3.12'
 
       - name: 패키지 설치
-        run: pip install requests openpyxl google-genai
+        run: pip install requests openpyxl google-genai beautifulsoup4 lxml
 
       - name: 주간 집계 생성
         env:
