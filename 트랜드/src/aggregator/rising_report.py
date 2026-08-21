@@ -8,7 +8,7 @@ from collectors.ecommerce_collector import PLATFORMS, get_rising_brand_candidate
 from collectors.keyword_volume_collector import get_keyword_volumes
 from collectors.demographic_collector import get_one_year_trend, get_demographic_breakdown
 from collectors.news_collector import get_naver_news
-from summarizer.ai_summary import summarize_keyword_issue
+from summarizer.ai_summary import summarize_keyword_issues_batch
 
 logger = logging.getLogger(__name__)
 
@@ -63,40 +63,56 @@ def _rank_movers(today_volumes, prev_volumes, candidates, top_n=TOP_N):
     return result
 
 
-def _build_card(keyword, cur_volume, ecommerce_data, kind_label):
-    top_brands = _find_top_brands(keyword, ecommerce_data, limit=2)
-
+def _collect_news_titles(keyword):
     news_items = get_naver_news(keyword, display=5)
-    news_titles = [
+    return [
         n["title"].replace("<b>", "").replace("</b>", "").replace("&quot;", '"')
         for n in news_items
     ]
-    bullets = summarize_keyword_issue(keyword, kind_label, news_titles)
 
-    trend = get_one_year_trend(keyword)
+
+def _build_card(keyword, cur_volume, ecommerce_data, kind_label):
+    """이슈 요약(AI)은 여기서 바로 호출하지 않고 _news_titles/_kind_label만 임시로
+    담아둔다 — _attach_issue_bullets()가 이 함수로 만든 카드 전체를 모아 단 한 번의
+    배치 API 호출로 채운다(카드마다 개별 호출하면 Gemini 무료 티어 하루 호출 한도를
+    리포트 한 번 생성으로 다 써버릴 수 있음, 2026-08-21)."""
     demo = get_demographic_breakdown(keyword)
-
     return {
         "name": keyword,
         "pc": cur_volume.get("pc", 0),
         "mobile": cur_volume.get("mobile", 0),
         "total": cur_volume.get("total", 0),
-        "top_brands": top_brands,
-        "issue_bullets": bullets or [],
-        "trend": trend,
+        "top_brands": _find_top_brands(keyword, ecommerce_data, limit=2),
+        "issue_bullets": [],
+        "_news_titles": _collect_news_titles(keyword),
+        "_kind_label": kind_label,
+        "trend": get_one_year_trend(keyword),
         "demo_bars": demo["bars"],
         "demo_top_label": demo["top_label"],
     }
+
+
+def _attach_issue_bullets(cards):
+    items = [
+        {"name": c["name"], "kind_label": c["_kind_label"], "news_titles": c["_news_titles"]}
+        for c in cards
+    ]
+    result = summarize_keyword_issues_batch(items)
+    for c in cards:
+        c["issue_bullets"] = result.get(c["name"], [])
+        del c["_news_titles"]
+        del c["_kind_label"]
+    return cards
 
 
 def build_report(ecommerce_data, today_volumes, prev_volumes, brand_candidates):
     """일간 급상승 리포트 — main.py가 오늘/전일 검색량 스냅샷을 넘겨 호출한다."""
     ing_movers = _rank_movers(today_volumes, prev_volumes, INGREDIENT_KEYWORDS)
     brand_movers = _rank_movers(today_volumes, prev_volumes, brand_candidates)
-    return {
-        "ingredients": [_build_card(kw, cur, ecommerce_data, "원료") for _, kw, cur in ing_movers],
-        "brands": [_build_card(kw, cur, ecommerce_data, "브랜드/제품") for _, kw, cur in brand_movers],
-    }
+    ing_cards = [_build_card(kw, cur, ecommerce_data, "원료") for _, kw, cur in ing_movers]
+    brand_cards = [_build_card(kw, cur, ecommerce_data, "브랜드/제품") for _, kw, cur in brand_movers]
+    _attach_issue_bullets(ing_cards + brand_cards)
+    return {"ingredients": ing_cards, "brands": brand_cards}
 
 
 def _aggregate_keyword_volumes(volume_days):
@@ -149,7 +165,7 @@ def build_period_report(ecommerce_days, volume_days, prev_volume_days):
 
     ing_movers = _rank_movers(cur_volumes, prev_volumes, INGREDIENT_KEYWORDS)
     brand_movers = _rank_movers(cur_volumes, prev_volumes, brand_candidates)
-    return {
-        "ingredients": [_build_card(kw, cur, ecommerce_data, "원료") for _, kw, cur in ing_movers],
-        "brands": [_build_card(kw, cur, ecommerce_data, "브랜드/제품") for _, kw, cur in brand_movers],
-    }
+    ing_cards = [_build_card(kw, cur, ecommerce_data, "원료") for _, kw, cur in ing_movers]
+    brand_cards = [_build_card(kw, cur, ecommerce_data, "브랜드/제품") for _, kw, cur in brand_movers]
+    _attach_issue_bullets(ing_cards + brand_cards)
+    return {"ingredients": ing_cards, "brands": brand_cards}

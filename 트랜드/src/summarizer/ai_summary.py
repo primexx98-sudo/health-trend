@@ -16,7 +16,9 @@ _RETRY_DELAYS = [2, 5]  # 재시도 사이 대기(초), 마지막 시도까지 �
 
 
 def _generate_with_retry(client, contents, label):
-    """일시적 API 실패(503 등)에 짧게 재시도. 최종 실패 시 None."""
+    """일시적 API 실패(503 등)에 짧게 재시도. 단, 429(RESOURCE_EXHAUSTED)는 하루 총
+    호출한도 자체를 넘긴 것이라 몇 초 기다려도 풀리지 않으므로 즉시 포기한다
+    (재시도하면 남은 할당량만 더 빨리 소진됨). 최종 실패 시 None."""
     last_error = None
     for attempt in range(_MAX_RETRIES + 1):
         try:
@@ -24,6 +26,9 @@ def _generate_with_retry(client, contents, label):
             return resp.text
         except Exception as e:
             last_error = e
+            if "RESOURCE_EXHAUSTED" in str(e):
+                logger.error(f"AI 생성 실패 [{label}]: 일일 호출 한도 초과 — 재시도하지 않음: {e}")
+                return None
             if attempt < _MAX_RETRIES:
                 delay = _RETRY_DELAYS[attempt]
                 logger.warning(f"AI 생성 실패 [{label}], {delay}초 후 재시도({attempt + 1}/{_MAX_RETRIES}): {e}")
@@ -103,50 +108,57 @@ def summarize(period_label, material):
     return _parse_response(text)
 
 
-_KEYWORD_PROMPT = """당신은 건강기능식품 마케팅 동향을 분석하는 애널리스트입니다.
-아래는 "{name}"({kind_label})에 대해 최근 수집된 뉴스 제목입니다. 이 자료만 근거로
-왜 이 키워드의 검색량이 늘고 있는지 짧게 분석하세요.
+_BATCH_KEYWORD_PROMPT = """당신은 건강기능식품 마케팅 동향을 분석하는 애널리스트입니다.
+아래는 여러 원료/브랜드별로 최근 수집된 뉴스 제목입니다. 각 항목마다 그 자료만 근거로
+왜 검색량이 늘고 있는지 짧게 분석하세요.
 
-[뉴스 제목]
-{news_lines}
+{items_block}
 
 주의사항:
 - 자료에 없는 내용(구체적인 방송 편성, 인플루언서 이름, 광고 캠페인 등)은 추측해서
   지어내지 마세요 — 자료에 실제로 나온 내용만 근거로 쓰세요.
 - 근거가 부족하면 억지로 만들지 말고 있는 그대로("최근 언급이 늘어난 배경은 자료만으로는
   확인되지 않음" 등)를 짧게 쓰세요.
+- 항목 이름은 입력에 준 이름과 정확히 동일한 문자열을 키로 사용하세요.
 
 다음 JSON 형식으로만 답하세요(다른 텍스트 없이):
-{{"bullets": ["핵심 포인트 1", "핵심 포인트 2"]}}
+{{"items": {{"항목명1": ["핵심 포인트 1", "핵심 포인트 2"], "항목명2": ["핵심 포인트 1"]}}}}
 """
 
 
-def summarize_keyword_issue(name, kind_label, news_titles):
-    """급상승 원료/브랜드 카드의 '이슈 및 현황' 텍스트를 생성한다.
-    name: 원료명 또는 브랜드/제품명. kind_label: "원료" | "브랜드/제품".
-    news_titles: 그 키워드로 검색한 최근 뉴스 제목 리스트.
-    반환: [str, ...] | None (키 미설정·자료 없음·API 실패 시)"""
+def summarize_keyword_issues_batch(items):
+    """급상승 원료/브랜드 카드 여러 개의 '이슈 및 현황'을 한 번의 API 호출로 함께 생성한다.
+    카드마다 개별 호출하면(원료3+브랜드3=6회) Gemini 무료 티어의 하루 호출 한도(20회)를
+    리포트 한 번 생성으로 다 써버릴 수 있어 배치 처리로 바꿈(2026-08-21).
+    items: [{"name": str, "kind_label": "원료"|"브랜드/제품", "news_titles": [str, ...]}, ...]
+    반환: {name: [bullet, ...]} — 뉴스가 있던 항목만 포함, 키 미설정·자료 없음·API 실패 시 {}"""
     client = _client()
     if client is None:
-        return None
-    if not news_titles:
-        return None
+        return {}
+    usable = [it for it in items if it.get("news_titles")]
+    if not usable:
+        return {}
 
-    news_lines = "\n".join(f"- {t}" for t in news_titles[:8])
+    blocks = []
+    for it in usable:
+        lines = "\n".join(f"  - {t}" for t in it["news_titles"][:8])
+        blocks.append(f'[{it["name"]}] ({it["kind_label"]})\n{lines}')
+    items_block = "\n\n".join(blocks)
+
     text = _generate_with_retry(
-        client, _KEYWORD_PROMPT.format(name=name, kind_label=kind_label, news_lines=news_lines), name
+        client, _BATCH_KEYWORD_PROMPT.format(items_block=items_block), "키워드 이슈 배치"
     )
     if text is None:
-        return None
+        return {}
 
     match = re.search(r"\{.*\}", text, re.DOTALL)
     if not match:
-        return None
+        return {}
     try:
         parsed = json.loads(match.group(0))
     except Exception:
-        return None
-    bullets = parsed.get("bullets")
-    if not isinstance(bullets, list):
-        return None
-    return [str(b) for b in bullets]
+        return {}
+    result = parsed.get("items")
+    if not isinstance(result, dict):
+        return {}
+    return {k: [str(b) for b in v] for k, v in result.items() if isinstance(v, list)}
