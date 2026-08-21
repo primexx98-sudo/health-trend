@@ -16,7 +16,8 @@ def _law_item_anchor_id(item):
     return "law-" + hashlib.md5(key.encode("utf-8")).hexdigest()[:10]
 
 _ECOM_PLATFORMS = [
-    ("카카오선물하기", "🎁 카카오 선물하기"),
+    ("카카오선물하기_건강식품", "🎁 카카오 선물하기(건강식품·영양제)"),
+    ("카카오선물하기_다이어트", "🎁 카카오 선물하기(다이어트·이너뷰티)"),
     ("다이소몰", "🏪 다이소몰"),
     ("올리브영", "💚 올리브영"),
 ]
@@ -239,7 +240,7 @@ def _render_period_section(data, kind):
             for i, it in enumerate(items)
         )
         body = rows if rows else no_data
-        return f'<div class="col-md-4"><div class="fw-bold mb-1 ecom-platform-label">{label}</div>{body}</div>'
+        return f'<div class="col-md-6 col-xl-3"><div class="fw-bold mb-1 ecom-platform-label">{label}</div>{body}</div>'
 
     ecommerce_rankings = data.get("ecommerce_rankings") or {}
     ranking_cols = "".join(
@@ -602,7 +603,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
             for it in items
         )
         body = rows if rows else no_data
-        return f'<div class="col-md-4"><div class="fw-bold mb-1 ecom-platform-label">{label}</div>{body}</div>'
+        return f'<div class="col-md-6 col-xl-3"><div class="fw-bold mb-1 ecom-platform-label">{label}</div>{body}</div>'
 
     ecommerce_cols = "".join(_ecommerce_col(key, label) for key, label in _ecommerce_platforms)
     ecommerce_date = ecommerce_data.get("date", "")

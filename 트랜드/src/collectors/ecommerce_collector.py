@@ -1,5 +1,6 @@
 import io
 import logging
+import re
 from datetime import datetime, timedelta
 
 import requests
@@ -7,8 +8,35 @@ from openpyxl import load_workbook
 
 logger = logging.getLogger(__name__)
 
+_BRACKET_TAG_RE = re.compile(r"^\[([^\]]{2,20})\]")
+_BRACKET_TAG_EXCLUDE = ("한정", "특가", "세일", "이벤트", "무료배송", "당일발송", "품절임박", "재입고")
+
+
+def _extract_bracket_tag(name):
+    """상품명 앞머리의 "[태그]" 표기 — "브랜드" 필드가 유통사/제조사명(예: "동국제약")인
+    경우가 많은 반면, 이 태그는 실제 제품 라인/서브브랜드명인 경우가 많아(예: "[그레이온]
+    웨스트 카트 브랜드 효과 3세트") 급상승 브랜드/제품 후보에 별도로 추가한다(2026-08-21)."""
+    if not isinstance(name, str):
+        return None
+    m = _BRACKET_TAG_RE.match(name.strip())
+    if not m:
+        return None
+    tag = m.group(1).strip()
+    if re.search(r"\d", tag) or any(kw in tag for kw in _BRACKET_TAG_EXCLUDE):
+        return None
+    return tag
+
 RAW_BASE = "https://raw.githubusercontent.com/primexx98-sudo/online-mall-ranking/master/data/daily"
-PLATFORMS = ["카카오선물하기", "다이소몰", "올리브영"]
+# 2026-08-21: "카카오선물하기" 시트는 online-mall-ranking의 crawlers/kakao.py가 서브카테고리
+# 2개(건강식품·영양제, 다이어트·이너뷰티)를 top_n=10씩 순차로 이어붙여 20행으로 저장한다
+# (crawlers/config.py의 PLATFORMS["카카오선물하기"]["categories"] 순서 그대로, 시트 내 카테고리
+# 컬럼 값은 이 두 그룹과 무관한 상품별 세부 분류라 행 위치로만 구분 가능). 기존엔 앞 10행(첫
+# 서브카테고리)만 읽어 두 번째 서브카테고리가 통째로 누락됐던 걸 발견해 두 플랫폼 키로 분리.
+KAKAO_SUBCATEGORIES = [
+    ("카카오선물하기_건강식품", "건강식품·영양제"),
+    ("카카오선물하기_다이어트", "다이어트·이너뷰티"),
+]
+PLATFORMS = [key for key, _ in KAKAO_SUBCATEGORIES] + ["다이소몰", "올리브영"]
 TOP_N = 10
 
 
@@ -33,25 +61,38 @@ def get_ecommerce_rankings():
         logger.warning("이커머스 판매순위 데이터 없음 (최근 3일 모두 실패)")
         return {}
 
+    def _row_to_item(r):
+        return {
+            "rank": r[1],
+            "category": r[0],
+            "name": r[2],
+            "brand": r[3],
+            "price": r[4],
+            "url": r[5],
+            "image": r[6] if len(r) > 6 else "",
+        }
+
     result = {"date": date_str}
-    for platform in PLATFORMS:
+
+    if "카카오선물하기" in wb.sheetnames:
+        ws = wb["카카오선물하기"]
+        rows = list(ws.iter_rows(min_row=2, max_row=1 + TOP_N * 2, values_only=True))
+        rows = [r for r in rows if r and r[1] is not None]
+        for i, (key, _label) in enumerate(KAKAO_SUBCATEGORIES):
+            chunk = rows[i * TOP_N:(i + 1) * TOP_N]
+            result[key] = [_row_to_item(r) for r in chunk]
+    else:
+        for key, _label in KAKAO_SUBCATEGORIES:
+            result[key] = []
+
+    for platform in ("다이소몰", "올리브영"):
         if platform not in wb.sheetnames:
             result[platform] = []
             continue
         ws = wb[platform]
         rows = list(ws.iter_rows(min_row=2, max_row=1 + TOP_N, values_only=True))
-        result[platform] = [
-            {
-                "rank": r[1],
-                "category": r[0],
-                "name": r[2],
-                "brand": r[3],
-                "price": r[4],
-                "url": r[5],
-                "image": r[6] if len(r) > 6 else "",
-            }
-            for r in rows if r and r[1] is not None
-        ]
+        result[platform] = [_row_to_item(r) for r in rows if r and r[1] is not None]
+
     return result
 
 
@@ -63,9 +104,6 @@ def get_rising_brand_candidates(data, limit=15):
     weights = {}
     for platform in PLATFORMS:
         for it in data.get(platform, []):
-            brand = (it.get("brand") or "").strip()
-            if not brand:
-                continue
             badge = it.get("badge")
             if badge == "new":
                 weight = 1
@@ -73,9 +111,17 @@ def get_rising_brand_candidates(data, limit=15):
                 weight = 1 + int(badge.split(":")[1])
             else:
                 continue
-            weights[brand] = weights.get(brand, 0) + weight
+            candidates = set()
+            brand = (it.get("brand") or "").strip()
+            if brand:
+                candidates.add(brand)
+            tag = _extract_bracket_tag(it.get("name"))
+            if tag:
+                candidates.add(tag)
+            for name in candidates:
+                weights[name] = weights.get(name, 0) + weight
     ranked = sorted(weights.items(), key=lambda x: -x[1])
-    return [brand for brand, _ in ranked[:limit]]
+    return [name for name, _ in ranked[:limit]]
 
 
 def attach_rank_changes(data, prev_data):

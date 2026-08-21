@@ -34,9 +34,18 @@ EXCLUDE_KEYWORDS = [
 ]
 
 # ─── 분류 키워드 (직접 수정 가능) ─────────────────────────────────
+# 2026-08-22: "발표"·"분석"이 너무 범용적이라(실적발표/시장분석 등) 특허소송·공시 같은
+# 기업 법률·재무 뉴스가 핵심 성분 키워드를 우연히 언급하면 "연구"로 오분류되던 문제
+# (예: "SK바이오팜 특허소송" 기사) — 두 단어를 단독 트리거에서 빼고 더 구체적인
+# 복합어로 교체, 남을 수 있는 오탐은 아래 _RESEARCH_EXCLUDE_KEYWORDS로 추가 차단.
 RESEARCH_KEYWORDS = [
-    "연구", "임상", "논문", "학회", "발표", "분석",
-    "효능 확인", "실험", "메타분석", "성분 연구", "임상시험",
+    "연구", "임상", "논문", "학회", "메타분석", "실험", "임상시험",
+    "연구 결과 발표", "학회 발표", "학술대회 발표", "성분 분석 결과", "효능 분석 결과",
+    "효능 확인", "성분 연구",
+]
+
+_RESEARCH_EXCLUDE_KEYWORDS = [
+    "특허소송", "특허침해", "손해배상", "실적발표", "공시", "주가", "인수합병",
 ]
 
 # HEALTH_KEYWORDS 중 "면역력·체지방·혈당" 같은 범용 효능어는 일반 의료/다이어트
@@ -134,6 +143,9 @@ def categorize(title, desc=""):
     combined = title + " " + desc
     if any(kw in combined for kw in REGULATORY_KEYWORDS):
         return "regulatory"
+    # 기업 법률/재무 뉴스는 핵심 성분 키워드를 우연히 언급해도 연구·임상 동향으로 보지 않음
+    if any(kw in combined for kw in _RESEARCH_EXCLUDE_KEYWORDS):
+        return "general"
     # research는 "연구"류 단어 + 실제 성분/제품 키워드가 함께 있어야 인정
     if any(kw in combined for kw in RESEARCH_KEYWORDS) and any(kw in combined for kw in CORE_HEALTH_KEYWORDS):
         return "research"
