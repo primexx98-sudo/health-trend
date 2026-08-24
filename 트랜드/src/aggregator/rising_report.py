@@ -105,6 +105,36 @@ def _attach_issue_bullets(cards):
     return cards
 
 
+def retry_issue_bullets(rising_report):
+    """weekly.yml/monthly.yml 실행 시점에 Gemini가 503(일시 과부하)을 반환해 이슈 요약이
+    비어있는 채로 저장된 급상승 카드를, daily.yml이 그 스냅샷을 다시 읽을 때마다 값싸게
+    복구 시도한다(2026-08-24: 주간 리포트 6개 카드가 한 번의 503으로 전멸한 사례 확인).
+    뉴스가 실제로 없어서 비어있는 카드는 재수집해도 news_titles가 다시 비어 Gemini를
+    호출하지 않으므로 API 낭비가 없다. 반환: (rising_report, 하나라도 채워졌는지)"""
+    if not rising_report:
+        return rising_report, False
+    changed = False
+    for kind_label, key in (("원료", "ingredients"), ("브랜드/제품", "brands")):
+        cards = rising_report.get(key) or []
+        pending = [c for c in cards if not c.get("issue_bullets")]
+        if not pending:
+            continue
+        items = []
+        for c in pending:
+            titles = _collect_news_titles(c["name"])
+            if titles:
+                items.append({"name": c["name"], "kind_label": kind_label, "news_titles": titles})
+        if not items:
+            continue
+        result = summarize_keyword_issues_batch(items)
+        for c in pending:
+            bullets = result.get(c["name"])
+            if bullets:
+                c["issue_bullets"] = bullets
+                changed = True
+    return rising_report, changed
+
+
 def build_report(ecommerce_data, today_volumes, prev_volumes, brand_candidates):
     """일간 급상승 리포트 — main.py가 오늘/전일 검색량 스냅샷을 넘겨 호출한다."""
     ing_movers = _rank_movers(today_volumes, prev_volumes, INGREDIENT_KEYWORDS)

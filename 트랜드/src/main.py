@@ -13,6 +13,8 @@ from collectors.overseas_collector import get_overseas_news
 from collectors.ecommerce_collector import get_ecommerce_rankings, attach_rank_changes
 from collectors.law_summary_collector import get_law_weekly_summary
 from aggregator.rising_report import collect_today_volumes, build_report
+from aggregator import weekly as weekly_agg
+from aggregator import monthly as monthly_agg
 from generator.dashboard import generate_html, write_archive_files
 
 def setup_logging():
@@ -294,6 +296,21 @@ def main():
     # 아직 한 번도 안 돌았으면 None → dashboard.py가 "축적 중" 빈 상태로 표시.
     weekly_data = load_latest_period_snapshot(os.path.join(_committed_data_dir, "weekly"), "weekly")
     monthly_data = load_latest_period_snapshot(os.path.join(_committed_data_dir, "monthly"), "monthly")
+
+    # weekly.yml/monthly.yml 실행 시점에 Gemini 503(일시 과부하)으로 AI 요약이 비어버린
+    # 스냅샷을 매일 이 시점에 값싸게 재시도한다(2026-08-24: 주간 리포트 6개 카드가 한
+    # 번의 503으로 전멸한 사례 확인 — 다음날 재시도하면 대개 풀려있음). 복구되면 오늘
+    # 대시보드에도 바로 반영되고, 저장된 스냅샷도 갱신해 다음 실행부터 재시도가 없다.
+    if weekly_data is not None:
+        weekly_data, _weekly_ai_fixed = weekly_agg.retry_missing_ai(weekly_data)
+        if _weekly_ai_fixed:
+            weekly_agg.save_weekly_summary(weekly_data)
+            logger.info("주간 집계 AI 요약 재시도로 복구됨 — 스냅샷 갱신")
+    if monthly_data is not None:
+        monthly_data, _monthly_ai_fixed = monthly_agg.retry_missing_ai(monthly_data)
+        if _monthly_ai_fixed:
+            monthly_agg.save_monthly_summary(monthly_data)
+            logger.info("월간 집계 AI 요약 재시도로 복구됨 — 스냅샷 갱신")
 
     # 보관함 탭 — 주간은 최근 104회(약 2년), 월간은 최근 36회(3년)까지 화면에 노출.
     # 그 이전 회차도 파일은 삭제되지 않고 docs/data/weekly·monthly에 그대로 남아있음.

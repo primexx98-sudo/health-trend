@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 트랜드/src
 from collectors.ecommerce_collector import PLATFORMS
 from summarizer.ai_summary import summarize
-from aggregator.rising_report import build_period_report
+from aggregator.rising_report import build_period_report, retry_issue_bullets
 
 logger = logging.getLogger(__name__)
 
@@ -340,6 +340,49 @@ def build_weekly_summary(iso_year=None, iso_week=None):
         "rising_report": rising_report,
         "ai_summary": ai_result,
     }
+
+
+def _material_from_saved(result):
+    """저장된 weekly 결과에서 build_weekly_summary()가 만들었던 것과 동일한 material을
+    원본 수집 없이 다시 조립한다 — retry_missing_ai()가 실패했던 AI 요약만 값싸게
+    재시도할 수 있게 해준다."""
+    rising_report = result.get("rising_report") or {}
+    return {
+        "이번 주 검색 상위 키워드": [f"{k['keyword']} (평균 {k['avg_ratio']:.0f}위)" for k in result.get("top_keywords") or []],
+        "이번 주 주요 뉴스": [f"[{n['category']}] {n['title']}" for n in result.get("news_highlights") or []],
+        "이번 주 이커머스 동향": [
+            f"{e['platform']} " + ("신규진입: " if e['kind'] == "new" else "순위상승: ") + e['name']
+            for e in result.get("ecommerce_highlights") or []
+        ],
+        "이번 주 급상승 원료": [
+            f"{c['name']} (검색량 {c['total']:.0f}, 상위 브랜드: {', '.join(c['top_brands']) or '없음'})"
+            for c in rising_report.get("ingredients", [])
+        ],
+        "이번 주 급상승 브랜드/제품": [
+            f"{c['name']} (검색량 {c['total']:.0f}, 상위 브랜드: {', '.join(c['top_brands']) or '없음'})"
+            for c in rising_report.get("brands", [])
+        ],
+        "검색은 늘었지만 대표 판매상품이 없는 키워드(신제품 기회 후보)":
+            _search_sales_gap_lines(result.get("top_keywords") or [], result.get("ecommerce_rankings") or {}),
+    }
+
+
+def retry_missing_ai(result):
+    """daily.yml이 매일 최신 주간 스냅샷을 읽을 때 호출 — weekly.yml 실행 시점에 Gemini
+    503으로 비어버린 전체 요약/급상승 이슈 카드를 재시도한다. 재료가 없거나 이미 채워져
+    있으면 API를 호출하지 않아 낭비가 없다. 반환: (result, 하나라도 채워졌는지)"""
+    changed = False
+    if result.get("ai_summary") is None:
+        material = _material_from_saved(result)
+        ai_result = summarize(result["period_label"], material)
+        if ai_result is not None:
+            result["ai_summary"] = ai_result
+            changed = True
+    rising_report = result.get("rising_report")
+    if rising_report:
+        _, cards_changed = retry_issue_bullets(rising_report)
+        changed = changed or cards_changed
+    return result, changed
 
 
 def save_weekly_summary(result):
