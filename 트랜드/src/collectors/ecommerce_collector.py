@@ -61,15 +61,19 @@ def get_ecommerce_rankings():
         logger.warning("이커머스 판매순위 데이터 없음 (최근 3일 모두 실패)")
         return {}
 
+    # 2026-08-24: online-mall-ranking이 A열에 제품 이미지를 직접 임베드하는 '이미지' 컬럼을
+    # 앞에 추가하면서(엑셀에서 좌측 썸네일로 보이도록) 기존 카테고리~이미지URL 컬럼이 전부
+    # 한 칸씩 밀림. 이 컬렉터는 이미지URL '텍스트' 컬럼만 읽으면 되므로(임베드된 그림 자체는
+    # 안 씀) 인덱스만 +1씩 밀어서 맞춘다.
     def _row_to_item(r):
         return {
-            "rank": r[1],
-            "category": r[0],
-            "name": r[2],
-            "brand": r[3],
-            "price": r[4],
-            "url": r[5],
-            "image": r[6] if len(r) > 6 else "",
+            "rank": r[2],
+            "category": r[1],
+            "name": r[3],
+            "brand": r[4],
+            "price": r[5],
+            "url": r[6],
+            "image": r[7] if len(r) > 7 else "",
         }
 
     result = {"date": date_str}
@@ -77,7 +81,7 @@ def get_ecommerce_rankings():
     if "카카오선물하기" in wb.sheetnames:
         ws = wb["카카오선물하기"]
         rows = list(ws.iter_rows(min_row=2, max_row=1 + TOP_N * 2, values_only=True))
-        rows = [r for r in rows if r and r[1] is not None]
+        rows = [r for r in rows if r and r[2] is not None]
         for i, (key, _label) in enumerate(KAKAO_SUBCATEGORIES):
             chunk = rows[i * TOP_N:(i + 1) * TOP_N]
             result[key] = [_row_to_item(r) for r in chunk]
@@ -91,7 +95,7 @@ def get_ecommerce_rankings():
             continue
         ws = wb[platform]
         rows = list(ws.iter_rows(min_row=2, max_row=1 + TOP_N, values_only=True))
-        result[platform] = [_row_to_item(r) for r in rows if r and r[1] is not None]
+        result[platform] = [_row_to_item(r) for r in rows if r and r[2] is not None]
 
     return result
 
