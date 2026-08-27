@@ -693,6 +693,12 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
                 + '</a>'
             )
         law_summary_html = "".join(rows)
+    elif law_summary.get("label"):
+        # 2026-08-27: FOODLAW-MONITORING 수집 자체는 성공했는데 이번 주 신규 항목이
+        # 0건인 정상 상태(주1회 수집이라 흔함)를 "데이터 수집 중..."(수집 실패처럼
+        # 보이는 문구)으로 표시하던 문제 — 수집 성공 여부(label 유무)로 구분해
+        # 신규 항목 0건일 때는 그 사실을 명확히 표시
+        law_summary_html = '<span class="text-muted small">이번 주 신규 법령 항목 없음</span>'
     else:
         law_summary_html = no_data
     law_label = law_summary.get("label", "")
