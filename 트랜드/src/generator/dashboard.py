@@ -497,6 +497,11 @@ def _rising_trend_delta(trend):
     pct = (last - first) / first * 100
     cls = "rising-chart-delta-up" if pct >= 0 else "rising-chart-delta-down"
     arrow = "▲" if pct >= 0 else "▼"
+    # 12개월 전 지수가 0에 가까운(노이즈 수준) 키워드는 비율이 수백~수만 %로 튀어
+    # 오히려 신뢰도를 해침 — 이 구간만 "몇 배" 표기로 바꿔 읽기 쉽게 한다.
+    if abs(pct) >= 999:
+        mult = last / first
+        return f'<span class="rising-chart-delta {cls}">{arrow} {mult:.0f}배 (12개월 전 대비)</span>'
     return f'<span class="rising-chart-delta {cls}">{arrow} {abs(pct):.0f}% (12개월 전 대비)</span>'
 
 
