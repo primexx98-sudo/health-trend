@@ -386,26 +386,118 @@ def _render_period_section(data, kind):
   {foodnews_row}"""
 
 
-def _rising_trend_svg(trend):
-    """1년 쿼리 그래프 — 외부 차트 라이브러리 없이 인라인 SVG 폴리라인으로 그린다."""
+def _fmt_approx_count(n):
+    """축/툴팁용 근사 검색량 표기 — 1만 이상은 "1.2만", 미만은 콤마."""
+    n = round(n)
+    if n >= 10000:
+        return f"{n / 10000:.1f}만"
+    return f"{n:,}"
+
+
+def _rising_trend_svg(trend, total, uid):
+    """1년 검색 추이 그래프 — 외부 차트 라이브러리 없이 인라인 SVG로 그린다.
+    데이터랩 상대지수(ratio)만 있고 과거 절대 검색량은 API가 제공하지 않으므로,
+    검색광고 API로 얻은 이번 달 실제 검색량(total)을 기준점 삼아 다른 달의 지수를
+    같은 비율로 환산한 근사치를 축/툴팁에 표시한다(= 데이터랩과 검색광고 두 API가
+    같은 시점을 정확히 가리킨다는 보장은 없는 추정치 — 라벨에 "(추정)" 명시)."""
     if not trend or len(trend) < 2:
         return ""
-    w, h, pad = 220, 46, 4
-    values = [p["ratio"] for p in trend]
-    vmin, vmax = min(values), max(values)
+    ratios = [p.get("ratio", 0) for p in trend]
+    vmax_ratio = max(ratios)
+    if vmax_ratio <= 0:
+        return ""
+
+    scale = None
+    for r in reversed(ratios):
+        if r > 0:
+            scale = (total or 0) / r
+            break
+
+    months = []
+    for p in trend:
+        try:
+            months.append(datetime.strptime(p["period"], "%Y-%m-%d").month)
+        except (KeyError, ValueError, TypeError):
+            months.append(None)
+
+    n = len(ratios)
+    w, h = 260, 84
+    pad_l, pad_r, pad_t, pad_b = 38, 6, 6, 16
+    plot_w, plot_h = w - pad_l - pad_r, h - pad_t - pad_b
+    vmin, vmax = min(ratios), vmax_ratio
     span = (vmax - vmin) or 1
-    n = len(values)
-    points = []
-    for i, v in enumerate(values):
-        x = pad + (w - 2 * pad) * i / (n - 1)
-        y = h - pad - (h - 2 * pad) * (v - vmin) / span
-        points.append(f"{x:.1f},{y:.1f}")
-    poly = " ".join(points)
+
+    def xy(i, r):
+        x = pad_l + plot_w * i / (n - 1)
+        y = pad_t + plot_h * (1 - (r - vmin) / span)
+        return x, y
+
+    pts = [xy(i, r) for i, r in enumerate(ratios)]
+    poly = " ".join(f"{x:.1f},{y:.1f}" for x, y in pts)
+    area = f"{pts[0][0]:.1f},{pad_t + plot_h:.1f} " + poly + f" {pts[-1][0]:.1f},{pad_t + plot_h:.1f}"
+
+    grid = []
+    for frac, ratio_v in ((0.0, vmin), (0.5, (vmin + vmax) / 2), (1.0, vmax)):
+        gy = pad_t + plot_h * (1 - frac)
+        label = _fmt_approx_count(ratio_v * scale) if scale else f"{ratio_v:.0f}"
+        grid.append(
+            f'<line x1="{pad_l}" y1="{gy:.1f}" x2="{w - pad_r}" y2="{gy:.1f}" '
+            f'stroke="var(--hairline)" stroke-width="1" stroke-dasharray="2,2"/>'
+            f'<text x="{pad_l - 4}" y="{gy + 3:.1f}" text-anchor="end" '
+            f'class="rising-trend-axis-label">{label}</text>'
+        )
+
+    xlabels = []
+    label_idx = sorted(set(range(0, n, 3)) | {n - 1})
+    for i in label_idx:
+        if months[i] is None:
+            continue
+        x, _ = pts[i]
+        xlabels.append(
+            f'<text x="{x:.1f}" y="{h - 2}" text-anchor="middle" '
+            f'class="rising-trend-axis-label">{months[i]}월</text>'
+        )
+
+    dots = []
+    for i, (x, y) in enumerate(pts):
+        month = months[i]
+        tip = f"{month}월 " if month else ""
+        tip += (
+            f"약 {_fmt_approx_count(ratios[i] * scale)}회(추정)"
+            if scale else f"검색지수 {ratios[i]:.0f}"
+        )
+        dots.append(
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.6" fill="var(--up)">'
+            f'<title>{tip}</title></circle>'
+        )
+
+    grad_id = f"riseGrad-{uid}"
     return (
-        f'<svg viewBox="0 0 {w} {h}" class="rising-trend-svg" preserveAspectRatio="none">'
+        f'<svg viewBox="0 0 {w} {h}" class="rising-trend-svg">'
+        f'<defs><linearGradient id="{grad_id}" x1="0" y1="0" x2="0" y2="1">'
+        f'<stop offset="0%" stop-color="var(--up)" stop-opacity="0.28"/>'
+        f'<stop offset="100%" stop-color="var(--up)" stop-opacity="0"/>'
+        f'</linearGradient></defs>'
+        f'{"".join(grid)}'
+        f'<polygon points="{area}" fill="url(#{grad_id})"/>'
         f'<polyline points="{poly}" fill="none" stroke="var(--up)" stroke-width="2"/>'
+        f'{"".join(dots)}'
+        f'{"".join(xlabels)}'
         f'</svg>'
     )
+
+
+def _rising_trend_delta(trend):
+    """12개월 전 대비 증감률 배지 — 상대지수 기준(환산 스케일과 무관하게 동일 비율)."""
+    if not trend or len(trend) < 2:
+        return ""
+    first, last = trend[0].get("ratio", 0), trend[-1].get("ratio", 0)
+    if first <= 0:
+        return ""
+    pct = (last - first) / first * 100
+    cls = "rising-chart-delta-up" if pct >= 0 else "rising-chart-delta-down"
+    arrow = "▲" if pct >= 0 else "▼"
+    return f'<span class="rising-chart-delta {cls}">{arrow} {abs(pct):.0f}% (12개월 전 대비)</span>'
 
 
 def _rising_demo_bars(demo_bars):
@@ -436,9 +528,13 @@ def _rising_card_html(card, rank):
     brands = card.get("top_brands") or []
     brands_html = " / ".join(brands) if brands else '<span class="text-muted small">매칭 상품 없음</span>'
 
-    trend_svg = _rising_trend_svg(card.get("trend"))
+    uid = hashlib.md5(f"{rank}-{card['name']}".encode("utf-8")).hexdigest()[:8]
+    trend_svg = _rising_trend_svg(card.get("trend"), card.get("total", 0), uid)
+    delta_html = _rising_trend_delta(card.get("trend"))
     chart_block = (
-        f'<div class="rising-card-chart">{trend_svg}<div class="rising-chart-label">최근 1년 검색 추이</div></div>'
+        f'<div class="rising-card-chart">{trend_svg}'
+        f'<div class="rising-chart-foot"><span class="rising-chart-label">최근 1년 검색 추이</span>{delta_html}</div>'
+        f'</div>'
         if trend_svg else ""
     )
 
@@ -894,8 +990,13 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .rising-card-row {{ font-size: 0.85rem; }}
   .rising-card-issue {{ border-top: 1px dashed var(--hairline); padding-top: 6px; }}
   .rising-card-chart {{ border-top: 1px dashed var(--hairline); padding-top: 6px; }}
-  .rising-trend-svg {{ width: 100%; height: 46px; display: block; }}
-  .rising-chart-label {{ font-size: 0.68rem; color: var(--muted); margin-top: 2px; }}
+  .rising-trend-svg {{ width: 100%; height: 78px; display: block; }}
+  .rising-trend-axis-label {{ font-size: 6.5px; fill: var(--muted); font-family: 'JetBrains Mono', monospace; }}
+  .rising-chart-foot {{ display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 2px; flex-wrap: wrap; }}
+  .rising-chart-label {{ font-size: 0.68rem; color: var(--muted); }}
+  .rising-chart-delta {{ font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; white-space: nowrap; }}
+  .rising-chart-delta-up {{ color: var(--up); }}
+  .rising-chart-delta-down {{ color: var(--down); }}
   .rising-card-demo {{ border-top: 1px dashed var(--hairline); padding-top: 6px; }}
   .rising-demo-row {{ display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }}
   .rising-demo-age {{ width: 42px; font-size: 0.72rem; color: var(--muted-strong); flex-shrink: 0; }}
