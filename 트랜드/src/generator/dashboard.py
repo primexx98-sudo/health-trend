@@ -488,7 +488,10 @@ def _rising_trend_svg(trend, total, uid):
 
 
 def _rising_trend_delta(trend):
-    """12개월 전 대비 증감률 배지 — 상대지수 기준(환산 스케일과 무관하게 동일 비율)."""
+    """12개월 전 대비 증감률 배지 — 상대지수 기준(환산 스케일과 무관하게 동일 비율).
+    "급상승 기준"(_rising_rank_basis_html, 전일/전주/전달 단기 증감)과는 다른 시간축이라
+    "장기 추이" 라벨을 붙여 구분한다 — 둘이 반대 방향이어도 자기모순이 아니라 서로
+    다른 질문에 대한 답이라는 걸 UI에서 바로 알 수 있게(2026-08-28)."""
     if not trend or len(trend) < 2:
         return ""
     first, last = trend[0].get("ratio", 0), trend[-1].get("ratio", 0)
@@ -501,8 +504,26 @@ def _rising_trend_delta(trend):
     # 오히려 신뢰도를 해침 — 이 구간만 "몇 배" 표기로 바꿔 읽기 쉽게 한다.
     if abs(pct) >= 999:
         mult = last / first
-        return f'<span class="rising-chart-delta {cls}">{arrow} {mult:.0f}배 (12개월 전 대비)</span>'
-    return f'<span class="rising-chart-delta {cls}">{arrow} {abs(pct):.0f}% (12개월 전 대비)</span>'
+        return f'<span class="rising-chart-delta {cls}">장기 추이: {arrow}12개월 전 대비 {mult:.0f}배</span>'
+    return f'<span class="rising-chart-delta {cls}">장기 추이: {arrow}12개월 전 대비 {abs(pct):.0f}%</span>'
+
+
+def _rising_rank_basis_html(card):
+    """이 카드가 "급상승"으로 뽑힌 근거(전일/전주/전달 대비 증가율)를 명시하는 배지.
+    12개월 장기 추이 배지와 시간축이 달라 방향이 엇갈릴 수 있으므로, 랭킹 근거를
+    카드 상단에 별도로 보여줘 혼란을 막는다([[project_health_trend]] 2026-08-28)."""
+    label = card.get("rank_basis_label") or ""
+    if card.get("rank_basis_new"):
+        return '<span class="rising-rank-basis rising-rank-basis-new">신규 발견</span>'
+    pct = card.get("rank_basis_pct")
+    if pct is None:
+        return ""
+    cls = "rising-rank-basis-up" if pct >= 0 else "rising-rank-basis-down"
+    arrow = "▲" if pct >= 0 else "▼"
+    return (
+        f'<span class="rising-rank-basis {cls}">급상승 기준: {arrow}{label} 대비 '
+        f'{abs(pct):.0f}%</span>'
+    )
 
 
 def _rising_demo_bars(demo_bars):
@@ -542,6 +563,7 @@ def _rising_card_html(card, rank):
         f'</div>'
         if trend_svg else ""
     )
+    rank_basis_html = _rising_rank_basis_html(card)
 
     demo_bars_html = _rising_demo_bars(card.get("demo_bars"))
     demo_label = card.get("demo_top_label")
@@ -550,7 +572,7 @@ def _rising_card_html(card, rank):
 
     return f"""
   <div class="rising-card">
-    <div class="rising-card-head"><span class="rank">{rank}</span><span class="rising-card-name">{card["name"]}</span></div>
+    <div class="rising-card-head"><span class="rank">{rank}</span><span class="rising-card-name">{card["name"]}</span>{rank_basis_html}</div>
     <div class="rising-card-volume">{card["total"]:,.0f}<small>월간 검색량(PC {card.get("pc", 0):,.0f} · 모바일 {card.get("mobile", 0):,.0f})</small></div>
     <div class="rising-card-row"><span class="rising-row-label">상위 브랜드</span>{brands_html}</div>
     <div class="rising-card-issue"><div class="rising-row-label">이슈 및 현황</div>{issue_html}</div>
@@ -987,7 +1009,11 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .archive-list-link:hover {{ background: var(--surface-elevated); color: var(--primary-text); }}
   .rising-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }}
   .rising-card {{ background: var(--surface-elevated); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }}
-  .rising-card-head {{ display: flex; align-items: center; gap: 8px; }}
+  .rising-card-head {{ display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }}
+  .rising-rank-basis {{ font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; font-family: 'JetBrains Mono', monospace; white-space: nowrap; }}
+  .rising-rank-basis-up {{ background: rgba(14,203,129,.15); color: var(--up); }}
+  .rising-rank-basis-down {{ background: rgba(246,70,93,.15); color: var(--down); }}
+  .rising-rank-basis-new {{ background: rgba(252,213,53,.18); color: var(--primary-text); }}
   .rising-card-name {{ font-weight: 700; font-size: 1rem; color: var(--body-text); }}
   .rising-card-volume {{ font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; font-weight: 700; color: var(--primary-text); }}
   .rising-card-volume small {{ display: block; font-weight: 400; font-size: 0.68rem; color: var(--muted); font-family: 'Inter', sans-serif; margin-top: 2px; }}

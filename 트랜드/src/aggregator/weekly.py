@@ -303,7 +303,7 @@ def build_weekly_summary(iso_year=None, iso_week=None):
     prev_date_strs = _prev_week_dates(iso_year, iso_week)
     prev_volume_days = [(d, _load_json(os.path.join(DATA_DIR, f"keyword_volume_{d}.json"))) for d in prev_date_strs]
     prev_volume_days = [(d, v) for d, v in prev_volume_days if v]
-    rising_report = build_period_report(ecommerce_days, volume_days, prev_volume_days)
+    rising_report = build_period_report(ecommerce_days, volume_days, prev_volume_days, period_label="전주")
 
     material = {
         "이번 주 검색 상위 키워드": [f"{k['keyword']} (평균 {k['avg_ratio']:.0f}위)" for k in top_keywords[:10]],

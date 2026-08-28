@@ -71,12 +71,26 @@ def _collect_news_titles(keyword):
     ]
 
 
-def _build_card(keyword, cur_volume, ecommerce_data, kind_label):
+def _build_card(keyword, cur_volume, prev_volume, period_label, ecommerce_data, kind_label):
     """이슈 요약(AI)은 여기서 바로 호출하지 않고 _news_titles/_kind_label만 임시로
     담아둔다 — _attach_issue_bullets()가 이 함수로 만든 카드 전체를 모아 단 한 번의
     배치 API 호출로 채운다(카드마다 개별 호출하면 Gemini 무료 티어 하루 호출 한도를
-    리포트 한 번 생성으로 다 써버릴 수 있음, 2026-08-21)."""
+    리포트 한 번 생성으로 다 써버릴 수 있음, 2026-08-21).
+
+    rank_basis_*: "급상승" 랭킹은 _rank_movers()가 period_label 기준(전일/전주/전달)
+    증가폭으로 정한 것인데, 카드에 함께 넣는 12개월 장기 추이(trend)는 완전히 다른
+    시간축이라 둘이 반대 방향을 가리킬 수 있다(예: 최근 반등 중이지만 작년 피크보다는
+    낮음) — 사용자에게 "급상승인데 왜 하락 배지?"로 보이는 걸 막기 위해 랭킹 근거를
+    별도 필드로 명시해 UI에서 두 지표를 구분 표기한다(2026-08-28)."""
     demo = get_demographic_breakdown(keyword)
+    prev_total = (prev_volume or {}).get("total", 0)
+    rank_basis_pct = None
+    if prev_volume is None:
+        rank_basis_new = True
+    else:
+        rank_basis_new = False
+        if prev_total > 0:
+            rank_basis_pct = (cur_volume.get("total", 0) - prev_total) / prev_total * 100
     return {
         "name": keyword,
         "pc": cur_volume.get("pc", 0),
@@ -89,6 +103,9 @@ def _build_card(keyword, cur_volume, ecommerce_data, kind_label):
         "trend": get_one_year_trend(keyword),
         "demo_bars": demo["bars"],
         "demo_top_label": demo["top_label"],
+        "rank_basis_label": period_label,
+        "rank_basis_pct": rank_basis_pct,
+        "rank_basis_new": rank_basis_new,
     }
 
 
@@ -139,8 +156,14 @@ def build_report(ecommerce_data, today_volumes, prev_volumes, brand_candidates):
     """일간 급상승 리포트 — main.py가 오늘/전일 검색량 스냅샷을 넘겨 호출한다."""
     ing_movers = _rank_movers(today_volumes, prev_volumes, INGREDIENT_KEYWORDS)
     brand_movers = _rank_movers(today_volumes, prev_volumes, brand_candidates)
-    ing_cards = [_build_card(kw, cur, ecommerce_data, "원료") for _, kw, cur in ing_movers]
-    brand_cards = [_build_card(kw, cur, ecommerce_data, "브랜드/제품") for _, kw, cur in brand_movers]
+    ing_cards = [
+        _build_card(kw, cur, prev_volumes.get(kw), "전일", ecommerce_data, "원료")
+        for _, kw, cur in ing_movers
+    ]
+    brand_cards = [
+        _build_card(kw, cur, prev_volumes.get(kw), "전일", ecommerce_data, "브랜드/제품")
+        for _, kw, cur in brand_movers
+    ]
     _attach_issue_bullets(ing_cards + brand_cards)
     return {"ingredients": ing_cards, "brands": brand_cards}
 
@@ -182,10 +205,11 @@ def _period_brand_candidates(ecommerce_days, limit=15):
     return [b for b, _ in ranked[:limit]]
 
 
-def build_period_report(ecommerce_days, volume_days, prev_volume_days):
+def build_period_report(ecommerce_days, volume_days, prev_volume_days, period_label="전기간"):
     """주간/월간 급상승 리포트 — weekly.py/monthly.py가 자기 기간의 일별 스냅샷
     리스트(현재 기간·직전 기간)를 넘겨 호출한다. 스냅샷이 아직 없는 과거 기간은
-    prev_volume_days가 비어있을 수 있고, 그 경우 절대 검색량 순으로 대체된다."""
+    prev_volume_days가 비어있을 수 있고, 그 경우 절대 검색량 순으로 대체된다.
+    period_label은 카드의 "급상승 기준" 표시용(weekly="전주", monthly="전달")."""
     if not volume_days:
         return None
     ecommerce_data = _combine_ecommerce_days(ecommerce_days)
@@ -195,7 +219,13 @@ def build_period_report(ecommerce_days, volume_days, prev_volume_days):
 
     ing_movers = _rank_movers(cur_volumes, prev_volumes, INGREDIENT_KEYWORDS)
     brand_movers = _rank_movers(cur_volumes, prev_volumes, brand_candidates)
-    ing_cards = [_build_card(kw, cur, ecommerce_data, "원료") for _, kw, cur in ing_movers]
-    brand_cards = [_build_card(kw, cur, ecommerce_data, "브랜드/제품") for _, kw, cur in brand_movers]
+    ing_cards = [
+        _build_card(kw, cur, prev_volumes.get(kw), period_label, ecommerce_data, "원료")
+        for _, kw, cur in ing_movers
+    ]
+    brand_cards = [
+        _build_card(kw, cur, prev_volumes.get(kw), period_label, ecommerce_data, "브랜드/제품")
+        for _, kw, cur in brand_movers
+    ]
     _attach_issue_bullets(ing_cards + brand_cards)
     return {"ingredients": ing_cards, "brands": brand_cards}
