@@ -35,6 +35,8 @@ _NAV_JS = """\
       var cur = (location.pathname.match(/dashboard_(\\d{8})\\.html/) || [])[1];
       var archiveList = document.getElementById('archive-daily-list');
       if (archiveList) archiveList.innerHTML = '';
+      var monthGroups = {};
+      var monthOrder = [];
       dates.forEach(function(d, i){
         var label = d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6,8);
         var href = i === 0 ? './index.html' : ('./dashboard_'+d+'.html');
@@ -43,13 +45,33 @@ _NAV_JS = """\
         opt.text  = i === 0 ? label+' (오늘)' : label;
         sel.appendChild(opt);
         if (archiveList) {
-          var a = document.createElement('a');
-          a.href = href;
-          a.className = 'archive-list-link';
-          a.textContent = i === 0 ? label+' (오늘)' : label;
-          archiveList.appendChild(a);
+          var monthKey = d.slice(0,6);
+          if (!monthGroups[monthKey]) { monthGroups[monthKey] = []; monthOrder.push(monthKey); }
+          monthGroups[monthKey].push({ href: href, text: i === 0 ? label+' (오늘)' : label });
         }
       });
+      if (archiveList) {
+        monthOrder.forEach(function(monthKey, gi){
+          var mLabel = monthKey.slice(0,4) + '년 ' + parseInt(monthKey.slice(4,6), 10) + '월';
+          var details = document.createElement('details');
+          details.className = 'archive-month-group';
+          if (gi === 0) details.open = true;
+          var summary = document.createElement('summary');
+          summary.textContent = mLabel + ' (' + monthGroups[monthKey].length + '건)';
+          details.appendChild(summary);
+          var body = document.createElement('div');
+          body.className = 'archive-month-body';
+          monthGroups[monthKey].forEach(function(it){
+            var a = document.createElement('a');
+            a.href = it.href;
+            a.className = 'archive-list-link';
+            a.textContent = it.text;
+            body.appendChild(a);
+          });
+          details.appendChild(body);
+          archiveList.appendChild(details);
+        });
+      }
       sel.value = cur ? ('./dashboard_'+cur+'.html') : './index.html';
     })
     .catch(function(){});
@@ -1007,6 +1029,11 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .archive-list-item.active {{ background: var(--primary); color: #1e2329; font-weight: 700; }}
   .archive-list-link {{ display: block; padding: 6px 10px; border-radius: 6px; color: var(--body-text); text-decoration: none; font-size: 0.85rem; }}
   .archive-list-link:hover {{ background: var(--surface-elevated); color: var(--primary-text); }}
+  .archive-month-group {{ border-bottom: 1px solid var(--hairline); }}
+  .archive-month-group:last-child {{ border-bottom: none; }}
+  .archive-month-group summary {{ padding: 8px 10px; cursor: pointer; font-size: 0.85rem; font-weight: 700; color: var(--primary-text); list-style: revert; }}
+  .archive-month-group summary:hover {{ background: var(--surface-elevated); }}
+  .archive-month-body {{ display: flex; flex-direction: column; gap: 2px; padding-left: 4px; }}
   .rising-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }}
   .rising-card {{ background: var(--surface-elevated); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }}
   .rising-card-head {{ display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }}
