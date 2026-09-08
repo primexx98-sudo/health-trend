@@ -66,6 +66,11 @@ def get_ecommerce_rankings():
     # 한 칸씩 밀림. 이 컬렉터는 이미지URL '텍스트' 컬럼만 읽으면 되므로(임베드된 그림 자체는
     # 안 씀) 인덱스만 +1씩 밀어서 맞춘다.
     def _row_to_item(r):
+        # 2026-09-08: online-mall-ranking이 이미지URL 뒤에 리뷰 관련 컬럼 8개(리뷰평점/
+        # 리뷰건수/긍정1~3/부정1~3)를 새로 추가 — 이 컬럼들이 없던 옛 파일(3일 폴백 조회 대상)도
+        # 여전히 열릴 수 있어 len(r) 가드로 방어. 긍정/부정은 빈 문자열/None을 걸러 리스트로.
+        positive = [r[i] for i in (10, 11, 12) if len(r) > i and r[i]]
+        negative = [r[i] for i in (13, 14, 15) if len(r) > i and r[i]]
         return {
             "rank": r[2],
             "category": r[1],
@@ -74,6 +79,10 @@ def get_ecommerce_rankings():
             "price": r[5],
             "url": r[6],
             "image": r[7] if len(r) > 7 else "",
+            "rating": r[8] if len(r) > 8 else None,
+            "review_count": r[9] if len(r) > 9 else None,
+            "review_positive": positive,
+            "review_negative": negative,
         }
 
     result = {"date": date_str}
