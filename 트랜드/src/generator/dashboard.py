@@ -184,11 +184,17 @@ def _badge_html(badge):
 
 def _rating_chip(it):
     """이커머스 카드 가격 옆 평점 칩. online-mall-ranking이 리뷰를 못 가져온 상품(rating/
-    review_count 없음)은 조용히 생략 — 그런 상품이 대부분이라도 카드 레이아웃이 깨지지 않음."""
-    rating, count = it.get("rating"), it.get("review_count")
+    review_count 없음)은 조용히 생략 — 그런 상품이 대부분이라도 카드 레이아웃이 깨지지 않음.
+    rating/count는 xlsx를 거쳐 오는 값이라 숫자가 아닌 문자열로 들어올 수 있어 방어적으로 캐스팅
+    (2026-09-08: 다이소 API가 평점을 문자열로 내려줘서 실제로 배포 중 크래시가 난 적 있음)."""
+    try:
+        rating = float(it.get("rating"))
+        count = int(it.get("review_count"))
+    except (TypeError, ValueError):
+        return ""
     if not rating or not count:
         return ""
-    return f'<span class="ecom-rating">⭐ <b>{rating:.1f}</b> ({int(count):,})</span>'
+    return f'<span class="ecom-rating">⭐ <b>{rating:.1f}</b> ({count:,})</span>'
 
 
 def _review_bullet_title(text):
