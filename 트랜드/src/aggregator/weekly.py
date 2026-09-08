@@ -246,6 +246,12 @@ def _aggregate_ecommerce_rankings(ecommerce_days, top_n=10):
                 "price": latest[g].get("price"),
                 "url": latest[g].get("url"),
                 "image": latest[g].get("image"),
+                # 2026-09-08: 리뷰는 날짜별 스냅샷이라 "기간 전체의 리뷰"라는 개념이 없어
+                # latest[g](기간 내 가장 최근 등장일의 원본 item)에서 그대로 대표값으로 사용.
+                "rating": latest[g].get("rating"),
+                "review_count": latest[g].get("review_count"),
+                "review_positive": latest[g].get("review_positive"),
+                "review_negative": latest[g].get("review_negative"),
                 "_score": (score_sums[g] + BAYESIAN_K * global_mean_score) / (counts[g] + BAYESIAN_K),
             }
             for g in groups

@@ -304,7 +304,8 @@ def _render_period_section(data, kind):
             f'<span class="ecom-cat">{it.get("category") or ""}</span>'
             f'<span class="rank-badge badge-same">평균 {it["avg_rank"]:.1f}위 · {it["days_seen"]}일</span></div>'
             f'<a class="ecom-name" href="{it.get("url","")}" target="_blank">{it["name"]}</a>'
-            f'<div class="ecom-price">{it.get("price","")}</div>'
+            f'<div class="ecom-bottom-row"><div class="ecom-price">{it.get("price","")}</div>{_rating_chip(it)}</div>'
+            f'{_review_button_html(it)}'
             f'</div></div>'
             for i, it in enumerate(items)
         )
