@@ -206,25 +206,27 @@ def _review_bullet_title(text):
     return text.split(" — ")[0].strip()
 
 
-def _review_chip_row(items, css_class):
-    if not items:
-        return ""
-    chips = "".join(f'<span class="review-chip {css_class}">{t}</span>' for t in items)
-    return f'<div class="review-chip-row">{chips}</div>'
-
-
-def _review_summary_html(it):
-    """쿠팡 "이런 점이 좋았어요/아쉬웠어요" 카드처럼(2026-09-09 사용자 요청, 원래 참고
-    이미지도 쿠팡 GOOD/BAD 카드형이었음) 클릭 없이 카드에 항상 노출한다. 이전엔 버튼을
-    눌러야 여는 모달이었지만, 모달도 title만 보여줬으므로(desc는 애초에 버림, 위 주석
-    참고) 정보 손실 없이 그대로 인라인 칩으로 옮길 수 있었다."""
+def _review_button_html(it):
+    """긍정/부정 요약이 하나라도 있는 상품에만 "리뷰 보기" 버튼을 붙인다. 클릭 시 열리는
+    모달에 필요한 데이터를 JSON으로 버튼의 data-review 속성에 통째로 실어보낸다(별도 전역
+    배열+인덱스 매칭 없이 버튼 자체로 완결) — openReviewModal()이 이를 읽어 렌더링."""
     positive = [_review_bullet_title(t) for t in (it.get("review_positive") or [])]
     negative = [_review_bullet_title(t) for t in (it.get("review_negative") or [])]
     positive = [t for t in positive if t]
     negative = [t for t in negative if t]
     if not positive and not negative:
         return ""
-    return _review_chip_row(positive, "pos") + _review_chip_row(negative, "neg")
+    import json as _json_local
+    payload = {
+        "name": it.get("name", ""), "image": it.get("image", ""),
+        "rating": it.get("rating"), "count": it.get("review_count"),
+        "positive": positive, "negative": negative,
+    }
+    data_attr = (
+        _json_local.dumps(payload, ensure_ascii=False)
+        .replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;")
+    )
+    return f'<div class="ecom-bottom-row"><button class="review-btn" data-review="{data_attr}" onclick="openReviewModal(this)">💬 리뷰 보기</button></div>'
 
 
 def _render_period_section(data, kind):
@@ -303,7 +305,7 @@ def _render_period_section(data, kind):
             f'<span class="rank-badge badge-same">평균 {it["avg_rank"]:.1f}위 · {it["days_seen"]}일</span></div>'
             f'<a class="ecom-name" href="{it.get("url","")}" target="_blank">{it["name"]}</a>'
             f'<div class="ecom-bottom-row"><div class="ecom-price">{it.get("price","")}</div>{_rating_chip(it)}</div>'
-            f'{_review_summary_html(it)}'
+            f'{_review_button_html(it)}'
             f'</div></div>'
             for i, it in enumerate(items)
         )
@@ -790,7 +792,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
             f'{_badge_html(it.get("badge"))}</div>'
             f'<a class="ecom-name" href="{it["url"]}" target="_blank">{it["name"]}</a>'
             f'<div class="ecom-bottom-row"><div class="ecom-price">{it["price"]}</div>{_rating_chip(it)}</div>'
-            f'{_review_summary_html(it)}'
+            f'{_review_button_html(it)}'
             f'</div></div>'
             for it in items
         )
@@ -965,8 +967,6 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     --primary-active: #f0b90b;
     --up: #0ecb81;
     --down: #f6465d;
-    --up-bg: rgba(14,203,129,0.15);
-    --down-bg: rgba(246,70,93,0.15);
     --info: #3b82f6;
     --turquoise: #2dbdb6;
     --rising-bg: #3a3a1f;
@@ -984,8 +984,6 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     --primary-active: #b8860b;
     --up: #0a9f68;
     --down: #d63447;
-    --up-bg: rgba(10,159,104,0.12);
-    --down-bg: rgba(214,52,71,0.12);
     --info: #2563eb;
     --turquoise: #0f8f88;
     --rising-bg: #fff3cd;
@@ -1041,10 +1039,27 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .ecom-bottom-row .ecom-price {{ margin-top: 0; }}
   .ecom-rating {{ font-size: 0.72rem; color: var(--muted-strong); white-space: nowrap; }}
   .ecom-rating b {{ color: var(--body-text); font-weight: 700; }}
-  .review-chip-row {{ display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }}
-  .review-chip {{ font-size: 0.68rem; line-height: 1.3; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }}
-  .review-chip.pos {{ background: var(--up-bg); color: var(--up); }}
-  .review-chip.neg {{ background: var(--down-bg); color: var(--down); }}
+  .review-btn {{ font-size: 0.7rem; color: var(--muted); background: var(--surface-elevated); border: 1px solid var(--hairline); border-radius: 10px; padding: 2px 8px; cursor: pointer; white-space: nowrap; font-family: inherit; }}
+  .review-btn:hover {{ color: var(--primary-text); border-color: var(--primary-text); }}
+  .review-btn:focus-visible {{ outline: 2px solid var(--primary-text); outline-offset: 1px; }}
+  .review-modal-backdrop {{ position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 1200; }}
+  .review-modal-backdrop[hidden] {{ display: none; }}
+  .review-modal-box {{ position: relative; background: var(--surface); border-radius: 14px; max-width: 380px; width: 100%; padding: 20px 20px 18px; max-height: 85vh; overflow-y: auto; }}
+  .review-modal-head {{ display: flex; gap: 10px; align-items: center; margin-bottom: 4px; }}
+  .review-modal-thumb {{ width: 44px; height: 44px; border-radius: 8px; object-fit: cover; background: var(--surface-elevated); flex-shrink: 0; }}
+  .review-modal-name {{ font-size: 0.9rem; font-weight: 700; line-height: 1.3; }}
+  .review-modal-meta {{ font-size: 0.76rem; color: var(--muted-strong); margin-top: 2px; }}
+  .review-modal-close {{ position: absolute; top: 14px; right: 16px; background: none; border: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; line-height: 1; padding: 4px; }}
+  .review-modal-close:hover {{ color: var(--body-text); }}
+  .review-section {{ margin-top: 16px; }}
+  .review-section-label {{ font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em; margin-bottom: 8px; display: flex; align-items: center; gap: 5px; }}
+  .review-section-label.pos {{ color: var(--up); }}
+  .review-section-label.neg {{ color: var(--down); }}
+  .review-bullets {{ list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }}
+  .review-bullets li {{ font-size: 0.83rem; line-height: 1.4; padding: 7px 10px; border-radius: 8px; background: var(--surface-elevated); color: var(--body-text); }}
+  .review-bullets.pos li {{ border-left: 3px solid var(--up); }}
+  .review-bullets.neg li {{ border-left: 3px solid var(--down); }}
+  .review-empty {{ font-size: 0.8rem; color: var(--muted); padding: 2px 0; }}
   .summary-card {{ border: 1px solid var(--primary); }}
   .summary-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }}
   .summary-label {{ font-size: 0.78rem; font-weight: 600; color: var(--muted-strong); margin-bottom: 6px; }}
@@ -1280,6 +1295,48 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
     </div>
   </div>
 </div>
+<div class="review-modal-backdrop" id="review-modal-backdrop" hidden onclick="if(event.target===this)closeReviewModal()">
+  <div class="review-modal-box" role="dialog" aria-modal="true" aria-labelledby="review-modal-name">
+    <button class="review-modal-close" aria-label="닫기" onclick="closeReviewModal()">✕</button>
+    <div class="review-modal-head">
+      <img class="review-modal-thumb" id="review-modal-thumb" src="" alt="">
+      <div>
+        <div class="review-modal-name" id="review-modal-name"></div>
+        <div class="review-modal-meta" id="review-modal-meta"></div>
+      </div>
+    </div>
+    <div class="review-section">
+      <div class="review-section-label pos">👍 좋아요 포인트</div>
+      <ul class="review-bullets pos" id="review-modal-pos"></ul>
+    </div>
+    <div class="review-section">
+      <div class="review-section-label neg">👎 아쉬운 점</div>
+      <ul class="review-bullets neg" id="review-modal-neg"></ul>
+    </div>
+  </div>
+</div>
+<script>
+function _reviewBulletsHtml(items, emptyText) {{
+  if (!items || !items.length) return '<li class="review-empty">' + emptyText + '</li>';
+  return items.map(function(t){{ return '<li>' + t + '</li>'; }}).join('');
+}}
+function openReviewModal(btn) {{
+  var data = JSON.parse(btn.getAttribute('data-review'));
+  document.getElementById('review-modal-name').textContent = data.name || '';
+  document.getElementById('review-modal-thumb').src = data.image || '';
+  var meta = [];
+  if (data.rating) meta.push('⭐ ' + Number(data.rating).toFixed(1));
+  if (data.count) meta.push('리뷰 ' + Number(data.count).toLocaleString() + '건');
+  document.getElementById('review-modal-meta').textContent = meta.join(' · ');
+  document.getElementById('review-modal-pos').innerHTML = _reviewBulletsHtml(data.positive, '긍정 포인트가 뚜렷하게 뽑히지 않았어요');
+  document.getElementById('review-modal-neg').innerHTML = _reviewBulletsHtml(data.negative, '특별한 불만이 발견되지 않았어요');
+  document.getElementById('review-modal-backdrop').hidden = false;
+}}
+function closeReviewModal() {{
+  document.getElementById('review-modal-backdrop').hidden = true;
+}}
+document.addEventListener('keydown', function(e){{ if (e.key === 'Escape') closeReviewModal(); }});
+</script>
 {_NAV_JS}
 </body>
 </html>"""
