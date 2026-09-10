@@ -125,12 +125,17 @@ def get_rising_brand_candidates(data, limit=15):
             else:
                 continue
             candidates = set()
-            brand = (it.get("brand") or "").strip()
-            if brand:
-                candidates.add(brand)
             tag = _extract_bracket_tag(it.get("name"))
             if tag:
+                # 2026-09-10: 상품에 브래킷태그가 있으면 그게 실제 제품라인/서브브랜드명이라
+                # 더 구체적인 신호 — 유통사·제조사 법인명(브랜드 필드)은 후보에서 제외해
+                # "동국제약/대웅제약" 같은 회사명이 검색량 베이스가 커서 상위를 차지하는
+                # 편중을 줄인다. 태그가 없는 상품은 기존처럼 브랜드 필드를 그대로 사용.
                 candidates.add(tag)
+            else:
+                brand = (it.get("brand") or "").strip()
+                if brand:
+                    candidates.add(brand)
             for name in candidates:
                 weights[name] = weights.get(name, 0) + weight
     ranked = sorted(weights.items(), key=lambda x: -x[1])

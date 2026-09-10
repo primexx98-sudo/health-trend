@@ -12,10 +12,13 @@ from collectors.news_collector import collect_all_news
 from collectors.overseas_collector import get_overseas_news
 from collectors.ecommerce_collector import get_ecommerce_rankings, attach_rank_changes
 from collectors.law_summary_collector import get_law_weekly_summary
-from aggregator.rising_report import collect_today_volumes, build_report
+from aggregator.rising_report import collect_today_volumes, build_report, retry_issue_bullets
 from aggregator import weekly as weekly_agg
 from aggregator import monthly as monthly_agg
 from generator.dashboard import generate_html, write_archive_files
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
+from regenerate_backups import regenerate_one
 
 def setup_logging():
     os.makedirs(LOG_DIR, exist_ok=True)
@@ -232,6 +235,38 @@ def cleanup_old_keyword_volume_snapshots(data_dir, keep_days=90):
     if removed:
         logging.getLogger("main").info(f"오래된 검색량(급상승 리포트) 스냅샷 {removed}개 삭제")
 
+def load_rising_snapshot(data_dir, date_str):
+    path = os.path.join(data_dir, f"rising_{date_str}.json")
+    if not os.path.exists(path):
+        return None
+    try:
+        import json as _json
+        with open(path, "r", encoding="utf-8") as f:
+            return _json.load(f)
+    except Exception:
+        return None
+
+def save_rising_snapshot(data_dir, date_str, rising_report):
+    import json as _json
+    os.makedirs(data_dir, exist_ok=True)
+    path = os.path.join(data_dir, f"rising_{date_str}.json")
+    with open(path, "w", encoding="utf-8") as f:
+        _json.dump(rising_report, f, ensure_ascii=False)
+
+def cleanup_old_rising_snapshots(data_dir, keep_days=90):
+    cutoff = datetime.now() - timedelta(days=keep_days)
+    removed = 0
+    for fpath in glob.glob(os.path.join(data_dir, "rising_????????.json")):
+        try:
+            date_str = os.path.basename(fpath)[len("rising_"):-len(".json")]
+            if datetime.strptime(date_str, "%Y%m%d") < cutoff:
+                os.remove(fpath)
+                removed += 1
+        except Exception:
+            pass
+    if removed:
+        logging.getLogger("main").info(f"오래된 급상승 리포트 스냅샷 {removed}개 삭제")
+
 def cleanup_old_ecommerce_snapshots(data_dir, keep_days=90):
     cutoff = datetime.now() - timedelta(days=keep_days)
     removed = 0
@@ -312,6 +347,21 @@ def main():
             monthly_agg.save_monthly_summary(monthly_data)
             logger.info("월간 집계 AI 요약 재시도로 복구됨 — 스냅샷 갱신")
 
+    # 일간 급상승 리포트도 위와 동일한 이유(Gemini 429/503)로 "이슈 및 현황"이 비어 저장될
+    # 수 있다 — 다음날 이 시점에 재시도한다(2026-09-10). weekly/monthly와 달리 일간은
+    # "현재 표시 중인 데이터"가 아니라 전일치 아카이브 페이지(dashboard_{yesterday}.html)라
+    # 스냅샷만 고쳐서는 화면에 반영되지 않으므로, 복구되면 그 페이지도 함께 재생성한다.
+    yesterday_rising = load_rising_snapshot(_committed_data_dir, yesterday_str)
+    if yesterday_rising is not None:
+        yesterday_rising, _rising_fixed = retry_issue_bullets(yesterday_rising)
+        if _rising_fixed:
+            save_rising_snapshot(_committed_data_dir, yesterday_str, yesterday_rising)
+            try:
+                regenerate_one(yesterday_str, rising_report=yesterday_rising)
+                logger.info(f"전일({yesterday_str}) 급상승 리포트 이슈요약 재시도로 복구됨 — 아카이브 재생성")
+            except Exception as e:
+                logger.warning(f"전일 급상승 리포트 아카이브 재생성 실패: {e}")
+
     # 보관함 탭 — 주간은 최근 104회(약 2년), 월간은 최근 36회(3년)까지 화면에 노출.
     # 그 이전 회차도 파일은 삭제되지 않고 docs/data/weekly·monthly에 그대로 남아있음.
     weekly_archive = load_period_archive(os.path.join(_committed_data_dir, "weekly"), "weekly", keep_n=104)
@@ -379,6 +429,12 @@ def main():
         _snapshot_dir = os.path.join(OUTPUT_DIR, "data")
         save_keyword_volume_snapshot(_snapshot_dir, date_str, today_keyword_volumes)
         cleanup_old_keyword_volume_snapshots(_snapshot_dir)
+
+    # 급상승 리포트 스냅샷 저장 (다음날 이슈요약 재시도용 — 위 "일간 급상승 리포트" 안전망 참고)
+    if rising_report:
+        _snapshot_dir = os.path.join(OUTPUT_DIR, "data")
+        save_rising_snapshot(_snapshot_dir, date_str, rising_report)
+        cleanup_old_rising_snapshots(_snapshot_dir)
 
     logger.info(f"완료: {index_path}")
     print(f"완료! index.html 업데이트됨 (백업: dashboard_{date_str}.html)")

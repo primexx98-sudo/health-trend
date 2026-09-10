@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from itertools import zip_longest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 트랜드/src
 from config import INGREDIENT_KEYWORDS
@@ -109,12 +110,31 @@ def _build_card(keyword, cur_volume, prev_volume, period_label, ecommerce_data, 
     }
 
 
+def _summarize_with_fallback(items):
+    """배치 호출 전체가 503/429로 실패하면(summarize_keyword_issues_batch가 {} 반환)
+    카드 6개가 한꺼번에 다 비어버린다 — 우선순위(급상승 랭킹) 상위 절반만 추려 한 번 더
+    시도해서, 완전 실패보다는 최소한 중요한 카드라도 건지도록 한다(2026-09-10).
+    items는 이미 우선순위 순으로 정렬돼 있어야 함."""
+    if not items:
+        return {}
+    result = summarize_keyword_issues_batch(items)
+    if not result and len(items) > 1:
+        half = (len(items) + 1) // 2
+        result = summarize_keyword_issues_batch(items[:half])
+    return result
+
+
 def _attach_issue_bullets(cards):
+    # 원료/브랜드 카드가 각각 랭킹순으로 이미 정렬돼 있으므로, 두 그룹을 랭킹 순서대로
+    # 번갈아 배치해 배치 호출이 절반으로 줄어들 때도 원료·브랜드 1~2위가 고르게 남도록 한다.
+    ing = [c for c in cards if c["_kind_label"] == "원료"]
+    brand = [c for c in cards if c["_kind_label"] == "브랜드/제품"]
+    ordered = [c for pair in zip_longest(ing, brand) for c in pair if c is not None]
     items = [
         {"name": c["name"], "kind_label": c["_kind_label"], "news_titles": c["_news_titles"]}
-        for c in cards
+        for c in ordered
     ]
-    result = summarize_keyword_issues_batch(items)
+    result = _summarize_with_fallback(items)
     for c in cards:
         c["issue_bullets"] = result.get(c["name"], [])
         del c["_news_titles"]
@@ -143,7 +163,7 @@ def retry_issue_bullets(rising_report):
                 items.append({"name": c["name"], "kind_label": kind_label, "news_titles": titles})
         if not items:
             continue
-        result = summarize_keyword_issues_batch(items)
+        result = _summarize_with_fallback(items)
         for c in pending:
             bullets = result.get(c["name"])
             if bullets:
@@ -173,10 +193,15 @@ def _aggregate_keyword_volumes(volume_days):
     sums, counts = {}, {}
     for _, day_data in volume_days:
         for kw, v in day_data.items():
-            total = v.get("total", 0)
-            sums[kw] = sums.get(kw, 0) + total
+            entry = sums.setdefault(kw, {"pc": 0, "mobile": 0, "total": 0})
+            entry["pc"] += v.get("pc", 0)
+            entry["mobile"] += v.get("mobile", 0)
+            entry["total"] += v.get("total", 0)
             counts[kw] = counts.get(kw, 0) + 1
-    return {kw: {"total": sums[kw] / counts[kw]} for kw in sums}
+    return {
+        kw: {k: v / counts[kw] for k, v in entry.items()}
+        for kw, entry in sums.items()
+    }
 
 
 def _combine_ecommerce_days(ecommerce_days):
