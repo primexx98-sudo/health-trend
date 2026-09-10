@@ -33,6 +33,7 @@ _NAV_JS = """\
     .then(function(r){ return r.json(); })
     .then(function(dates){
       var cur = (location.pathname.match(/dashboard_(\\d{8})\\.html/) || [])[1];
+      var curHref = cur ? ('./dashboard_'+cur+'.html') : './index.html';
       var archiveList = document.getElementById('archive-daily-list');
       if (archiveList) archiveList.innerHTML = '';
       var monthGroups = {};
@@ -47,7 +48,7 @@ _NAV_JS = """\
         if (archiveList) {
           var monthKey = d.slice(0,6);
           if (!monthGroups[monthKey]) { monthGroups[monthKey] = []; monthOrder.push(monthKey); }
-          monthGroups[monthKey].push({ href: href, text: i === 0 ? label+' (오늘)' : label });
+          monthGroups[monthKey].push({ href: href, text: i === 0 ? label+' (오늘)' : label, today: i === 0 });
         }
       });
       if (archiveList) {
@@ -64,7 +65,7 @@ _NAV_JS = """\
           monthGroups[monthKey].forEach(function(it){
             var a = document.createElement('a');
             a.href = it.href;
-            a.className = 'archive-list-link';
+            a.className = 'archive-list-link' + (it.today ? ' archive-today' : '') + (it.href === curHref ? ' active' : '');
             a.textContent = it.text;
             body.appendChild(a);
           });
@@ -72,7 +73,7 @@ _NAV_JS = """\
           archiveList.appendChild(details);
         });
       }
-      sel.value = cur ? ('./dashboard_'+cur+'.html') : './index.html';
+      sel.value = curHref;
     })
     .catch(function(){});
 })();
@@ -597,14 +598,21 @@ def _rising_rank_basis_html(card):
 
 
 def _rising_demo_bars(demo_bars):
-    """연령대x성별 검색 비중 막대 — 남성(파랑)/여성(청록) 2색."""
+    """연령대x성별 검색 비중 막대 — 남성(파랑)/여성(청록) 2색.
+    실제 데이터는 세그먼트 간 편차가 작아(대개 상대지수 85~100 범위) 최댓값 기준
+    선형 스케일만 쓰면 막대 길이가 다 비슷해 보여 최고 세그먼트를 눈으로 구분하기
+    어려웠음(2026-09-10) — 이 카드 내 최소~최댓값 구간을 8~100% 폭에 매핑(min-max
+    정규화)해 편차를 시각적으로 증폭시킨다. 최소치도 8% 최소폭을 둬 막대가 아예
+    안 보이는 일은 없게 함."""
     if not demo_bars:
         return ""
-    max_v = max((max(row.get("m", 0), row.get("f", 0)) for row in demo_bars), default=0) or 1
+    values = [row.get("m", 0) for row in demo_bars] + [row.get("f", 0) for row in demo_bars]
+    lo, hi = min(values, default=0), max(values, default=0)
+    span = (hi - lo) or 1
     rows = []
     for row in demo_bars:
-        m_pct = row.get("m", 0) / max_v * 100
-        f_pct = row.get("f", 0) / max_v * 100
+        m_pct = 8 + (row.get("m", 0) - lo) / span * 92
+        f_pct = 8 + (row.get("f", 0) - lo) / span * 92
         rows.append(
             f'<div class="rising-demo-row">'
             f'<span class="rising-demo-age">{row["age"]}</span>'
@@ -912,7 +920,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
         </div>
         <div class="summary-block">
           <div class="summary-label">🛒 이커머스 신규·급등</div>
-          {ecommerce_highlights_html}
+          <div class="summary-block-scroll">{ecommerce_highlights_html}</div>
         </div>
         <div class="summary-block">
           <div class="summary-label">📊 국내 검색 급상승 TOP3</div>
@@ -1012,6 +1020,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .tag {{ display: inline-block; background: var(--surface-elevated); color: var(--body-text); border-radius: 20px; padding: 4px 12px; margin: 4px; cursor: default; }}
   .tag small {{ color: var(--muted-strong); font-family: 'JetBrains Mono', monospace; }}
   .rising-tag {{ display: inline-block; background: var(--rising-bg); color: var(--primary-text); border-radius: 8px; padding: 6px 14px; margin: 4px; font-weight: 600; font-size: 0.9rem; }}
+  .news-scroll {{ max-height: 480px; overflow-y: auto; }}
   .news-item {{ padding: 7px 0; border-bottom: 1px solid var(--hairline); }}
   .news-item:last-child {{ border-bottom: none; }}
   .news-item a {{ color: var(--body-text); text-decoration: none; font-size: 0.87rem; line-height: 1.4; }}
@@ -1042,14 +1051,14 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .review-btn {{ font-size: 0.7rem; color: var(--muted); background: var(--surface-elevated); border: 1px solid var(--hairline); border-radius: 10px; padding: 2px 8px; cursor: pointer; white-space: nowrap; font-family: inherit; }}
   .review-btn:hover {{ color: var(--primary-text); border-color: var(--primary-text); }}
   .review-btn:focus-visible {{ outline: 2px solid var(--primary-text); outline-offset: 1px; }}
-  .review-modal-backdrop {{ position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 1200; }}
+  .review-modal-backdrop {{ position: fixed; inset: 0; background: rgba(0,0,0,0.72); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 1200; }}
   .review-modal-backdrop[hidden] {{ display: none; }}
-  .review-modal-box {{ position: relative; background: var(--surface); border-radius: 14px; max-width: 380px; width: 100%; padding: 20px 20px 18px; max-height: 85vh; overflow-y: auto; }}
-  .review-modal-head {{ display: flex; gap: 10px; align-items: center; margin-bottom: 4px; }}
+  .review-modal-box {{ position: relative; background: var(--surface); border: 1px solid var(--hairline); box-shadow: 0 12px 32px rgba(0,0,0,0.5); border-radius: 14px; max-width: 380px; width: 100%; padding: 20px 20px 18px; max-height: 85vh; overflow-y: auto; }}
+  .review-modal-head {{ display: flex; gap: 10px; align-items: center; margin-bottom: 4px; padding-right: 26px; }}
   .review-modal-thumb {{ width: 44px; height: 44px; border-radius: 8px; object-fit: cover; background: var(--surface-elevated); flex-shrink: 0; }}
   .review-modal-name {{ font-size: 0.9rem; font-weight: 700; line-height: 1.3; }}
   .review-modal-meta {{ font-size: 0.76rem; color: var(--muted-strong); margin-top: 2px; }}
-  .review-modal-close {{ position: absolute; top: 14px; right: 16px; background: none; border: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; line-height: 1; padding: 4px; }}
+  .review-modal-close {{ position: absolute; top: 12px; right: 14px; background: var(--surface-elevated); border: none; border-radius: 50%; color: var(--muted-strong); font-size: 1rem; cursor: pointer; line-height: 1; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; }}
   .review-modal-close:hover {{ color: var(--body-text); }}
   .review-section {{ margin-top: 16px; }}
   .review-section-label {{ font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em; margin-bottom: 8px; display: flex; align-items: center; gap: 5px; }}
@@ -1061,7 +1070,8 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .review-bullets.neg li {{ border-left: 3px solid var(--down); }}
   .review-empty {{ font-size: 0.8rem; color: var(--muted); padding: 2px 0; }}
   .summary-card {{ border: 1px solid var(--primary); }}
-  .summary-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }}
+  .summary-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; align-items: start; }}
+  .summary-block-scroll {{ max-height: 260px; overflow-y: auto; }}
   .summary-label {{ font-size: 0.78rem; font-weight: 600; color: var(--muted-strong); margin-bottom: 6px; }}
   .summary-line {{ font-size: 0.85rem; padding: 3px 0; color: var(--body-text); }}
   .law-item-row {{ display: block; padding: 6px 4px; margin: 0 -4px; border-bottom: 1px dashed var(--hairline); border-radius: 4px; text-decoration: none; color: inherit; }}
@@ -1090,7 +1100,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .tab-btn {{
     background: transparent; border: none; border-bottom: 2px solid transparent;
     color: var(--muted-strong); padding: 8px 4px; font-size: 0.92rem; font-weight: 600;
-    cursor: pointer;
+    cursor: pointer; white-space: nowrap; word-break: keep-all;
   }}
   .tab-btn.active {{ color: var(--primary-text); border-bottom-color: var(--primary); }}
   .tab-btn:hover {{ color: var(--body-text); }}
@@ -1103,6 +1113,8 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .archive-list-item.active {{ background: var(--primary); color: #1e2329; font-weight: 700; }}
   .archive-list-link {{ display: block; padding: 6px 10px; border-radius: 6px; color: var(--body-text); text-decoration: none; font-size: 0.85rem; }}
   .archive-list-link:hover {{ background: var(--surface-elevated); color: var(--primary-text); }}
+  .archive-list-link.archive-today {{ color: var(--primary-text); font-weight: 700; }}
+  .archive-list-link.active {{ background: var(--surface-elevated); box-shadow: inset 2px 0 0 var(--primary); }}
   .archive-month-group {{ border-bottom: 1px solid var(--hairline); }}
   .archive-month-group:last-child {{ border-bottom: none; }}
   .archive-month-group summary {{ padding: 8px 10px; cursor: pointer; font-size: 0.85rem; font-weight: 700; color: var(--primary-text); list-style: revert; }}
@@ -1144,8 +1156,10 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
   .idea-rationale {{ font-size: 0.76rem; color: var(--muted-strong); border-top: 1px dashed var(--hairline); padding-top: 6px; }}
   @media (max-width: 576px) {{
     .header {{ padding: 14px 16px; }}
-    .header h1 {{ font-size: 1.2rem; }}
+    .header h1 {{ font-size: 1.2rem; word-break: keep-all; }}
     .date-select {{ max-width: 140px; font-size: 0.78rem; }}
+    .tab-bar {{ overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }}
+    .tab-btn {{ font-size: 0.82rem; padding: 8px 3px; flex-shrink: 0; }}
     .rising-tag {{ font-size: 0.78rem; padding: 4px 10px; }}
     .card-header {{ font-size: 0.9rem; padding: 10px 14px; }}
     td {{ font-size: 0.82rem; padding: 5px 6px; }}
@@ -1225,7 +1239,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
           <span class="section-label label-research">Research</span>
         </div>
         <div class="card-body p-2">
-          {research_items if research_items else no_data}
+          <div class="news-scroll">{research_items if research_items else no_data}</div>
           <div class="card-source">출처: 네이버 뉴스 API (연구·임상 키워드 검색) · ScienceDaily RSS(🌐, 자동 번역)</div>
         </div>
       </div>
@@ -1237,7 +1251,7 @@ def generate_html(naver_data, sns_data, news_data, rising_data, overseas_data=No
           <span class="section-label label-regulatory">Regulatory</span>
         </div>
         <div class="card-body p-2">
-          {regulatory_items if regulatory_items else no_data}
+          <div class="news-scroll">{regulatory_items if regulatory_items else no_data}</div>
           <div class="card-source">출처: 네이버 뉴스 API (식약처·규제·고시 키워드 검색)</div>
         </div>
       </div>
